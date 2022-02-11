@@ -56,9 +56,14 @@ def make_cis_bins(log_bin_size, chrom_name, chrom_length, gene_start, gene_end, 
 
 
 def make_geom_bins(length, start_size, factor):
-    final_index = round(np.log(1 - length * (1 - factor) / start_size) / np.log(factor) - 1)
-    bin_edges = np.cumsum(start_size * factor ** np.arange(0, final_index + 1)).astype('int')
-    bin_edges = np.insert(bin_edges, 0, 0)
+    if factor < 1:
+        raise ValueError(f"factor value {factor} is less than 1.")
+    elif factor == 1:
+        bin_edges = np.arange(0, length, start_size, dtype='int')
+    else:
+        final_index = round(np.log(1 - length * (1 - factor) / start_size) / np.log(factor) - 1)  # from sum of geometric series
+        bin_edges = np.cumsum(start_size * factor ** np.arange(0, final_index + 1)).astype('int')
+        bin_edges = np.insert(bin_edges, 0, 0)
     bin_edges[-1] = length
     return bin_edges
 
