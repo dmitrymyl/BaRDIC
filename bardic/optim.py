@@ -36,7 +36,7 @@ def calculate_cost_function(contacts_df, bin_size, binner, **kwargs):
         float: a cost function value.
     """
     bins_df = binner(bin_size, **kwargs)
-    bins_coverage = calculate_bins_coverage(contacts_df, bins_df)
+    bins_coverage = calculate_bins_coverage(bins_df, contacts_df)
     return calculate_cost_function_from_bins(bins_coverage, bin_size)
 
 

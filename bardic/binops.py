@@ -74,7 +74,7 @@ def prune_geom_bins(geom_bins, max_linear_size):
         return np.concatenate((scaled_bins, linear_bins[1:]))
 
 
-def make_cis_bins3(start_size, factor, chrom_name, chrom_length, gene_start, gene_end, max_linear_size=None, fillgene=False):
+def make_cis_bins3(factor, start_size, chrom_name, chrom_length, gene_start, gene_end, max_linear_size=None, fillgene=False):
     """Makes cis bins of increasing size from gene borders in geometric progression.
     
     Bin i is of size start_size * factor ** i.
@@ -179,10 +179,10 @@ def make_trans_bins(bin_size, chromsizes_df, gene_chrom):
         pd.DataFrame: a dataframe with bins of 3 columns:
             "chrom", "start", "end".
     """
-    return make_linear_bins(bin_size, chromsizes_df.query('chrom != @gene_chrom'))
+    return make_linear_bins(bin_size, chromsizes_df.query(f'chrom != "{gene_chrom}"'))
 
 
-def calculate_bins_coverage(contacts_df, bins_df):
+def calculate_bins_coverage(bins_df, contacts_df):
     """Calculates how many contacts overlap every bin.
     
     Args:
