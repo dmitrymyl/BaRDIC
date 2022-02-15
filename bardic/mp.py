@@ -74,7 +74,7 @@ class ProgressBar:
                 return
 
 
-def process_by_chunks(iterable, remote_func, chunksize, *args):
+def process_by_chunks(iterable, remote_func, chunksize, *args, **kwargs):
     chunk_indices = list(range(0, len(iterable), chunksize))
     if chunk_indices[-1] < len(iterable):
         chunk_indices.append(len(iterable))
@@ -82,7 +82,7 @@ def process_by_chunks(iterable, remote_func, chunksize, *args):
     for i, (start, end) in tqdm(enumerate(zip(chunk_indices[:-1], chunk_indices[1:])), desc='Chunks'):
         chunk = iterable[start:end]
         pb = ProgressBar(len(chunk))
-        tasks_pre_launch = [remote_func.remote(item, *args, pb.actor) for item in chunk]
+        tasks_pre_launch = [remote_func.remote(item, *args, pb.actor, **kwargs) for item in chunk]
         pb.print_until_done()
         chunk_results = ray.get(tasks_pre_launch)
         results += chunk_results
