@@ -236,3 +236,39 @@ def make_rel_dist_vector(points, start, end):
     return np.where(points < start, start - points, np.where(points > end, points - end, 0))
 
 
+def calculate_rel_dist(cis_bins_df, gene_start, gene_end):
+    bins_centers = (cis_bins_df['start'] + cis_bins_df['end']) // 2
+    rel_dists = make_rel_dist_vector(bins_centers, gene_start, gene_end)
+    return rel_dists
+
+
+def compute_track(bins_df, centers_df, bg_track, impute=False, imputation_bg=None):
+    bins_coverage = calculate_bins_coverage(bins_df, centers_df)
+    bins_coverage['signal_prob'] = bins_coverage['count'] / bins_coverage['count'].sum()
+    overlap_with_bg = bf.overlap(bins_coverage,
+                                 bg_track,
+                                 how="left",
+                                 return_input=True,
+                                 keep_order=True,
+                                 suffixes=('', '_bg'),
+                                 return_index=True)\
+                                 .groupby('index')\
+                                 .agg({'start': 'min',
+                                         'end': 'max',
+                                         'start_bg': 'min',
+                                         'end_bg': 'max',
+                                         'count_bg': 'sum'})
+    bin_sizes = bins_coverage['end'] - bins_coverage['start']
+    bg_bin_sizes = overlap_with_bg['end_bg'].astype('int64') - overlap_with_bg['start_bg'].astype('int64')
+    rescaled_bg_counts = overlap_with_bg['count_bg'].astype('int64') / bg_bin_sizes * bin_sizes
+    if impute:
+        if imputation_bg is None:
+            raise ValueError("imputation_bg must be a positive float, not None")
+        imputed_rescaled_bg_counts = np.where((bins_coverage['count'] > 0) & (rescaled_bg_counts == 0),
+                                              bin_sizes * imputation_bg,
+                                              rescaled_bg_counts)
+        bins_coverage['bg_count'] = imputed_rescaled_bg_counts
+    else:
+        bins_coverage['bg_count'] = rescaled_bg_counts
+    bins_coverage['bg_prob'] = bins_coverage['bg_count'] / bins_coverage['bg_count'].sum()
+    return bins_coverage
