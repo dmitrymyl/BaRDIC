@@ -62,7 +62,8 @@ def optimize_cost_function(contacts_df, binner, start=1000, end=10000000, step=1
         binnner (callable): a binning function (one of `make_cis_bins3`, `make_trans_bins`).
         start (int, float): the smallest bin size to test (default: 1000 for trans bins).
         end (int, float): the biggest bin size to test (default: 10000000 for trans bins).
-        tolerance (float): ...
+        step (int, float): bin size increasing step (default: 1000 for trans bins).
+        tolerance (float): a tolerance parameter (default: 0.01).
         kwargs: keyword arguments used for specific binner.
     
     Returns:
@@ -118,7 +119,9 @@ def optimize_cost_function2(contacts_df, binner, start=1000, end=100000, step=10
         binnner (callable): a binning function (one of `make_cis_bins`, `make_trans_bins`).
         start (int, float): the smallest bin size to test (default: 1000 for trans bins).
         end (int, float): the biggest bin size to test (default: 100000 for trans bins).
-        tolerance (float): ...
+        step (int, float): bin size increasing step (default: 1000 for trans bins).
+        tolerance (float): a tolerance parameter (default: 0.01).
+        w (int): cost function smoothing window size (default: 5).
         kwargs: keyword arguments used for specific binner.
     
     Returns:

@@ -56,6 +56,20 @@ def make_cis_bins(log_bin_size, chrom_name, chrom_length, gene_start, gene_end, 
 
 
 def make_geom_bins(length, start_size, factor):
+    """Makes geometrically increasing bins.
+    
+    Args:
+        length (int): chromosome lenth.
+        start_size (int): start bin size, base of the geometric progression.
+        factor (float, int): a common ratio between two successive bin sizes.
+            Must be not less than 1.
+    
+    Returns:
+        np.array: bins edges.
+    
+    Raises:
+        ValueError: in case factor value is less than 1.
+    """
     if factor < 1:
         raise ValueError(f"factor value {factor} is less than 1.")
     elif factor == 1:
@@ -69,6 +83,17 @@ def make_geom_bins(length, start_size, factor):
 
 
 def prune_geom_bins(geom_bins, max_linear_size):
+    """Prunes geometric bins to maximal linear size.
+    
+    Given output from `make_geom_bins` removes all bins
+    that are longer than `max_linear_size` and fills the
+    remaining chromosome length with bins of `max_linear_size`
+    in length.
+
+    Args:
+        geom_bins (np.array): bins edges from `make_geom_bins`.
+        max_linear_size (int): maximal linear size.
+    """
     chrom_length = geom_bins[-1]
     scaled_bins = geom_bins[:np.sum(np.diff(geom_bins) <= max_linear_size) + 1]
     if len(scaled_bins) == len(geom_bins):
@@ -85,8 +110,8 @@ def make_cis_bins3(factor, start_size, chrom_name, chrom_length, gene_start, gen
     Bin i is of size start_size * factor ** i.
 
     Args:
-        start_size (int): start bin size.
         factor (int, float): geometric progression factor.
+        start_size (int): start bin size.
         chrom_name (str): chromosome name to put in the dataframe.
         chrom_length (int): length of the chromosome.
         gene_start (int): start coordinate of the gene.
@@ -224,6 +249,11 @@ def make_interval_centers(intervals_df):
 
 
 def make_rel_dist(point, start, end):
+    """Finds relative distance of a point to gene with [start; end] coordinates.
+    
+    Returns:
+        int: relative distance.
+    """
     if point < start:
         return start - point
     elif point > end:
@@ -233,16 +263,55 @@ def make_rel_dist(point, start, end):
 
 
 def make_rel_dist_vector(points, start, end):
+    """Finds relative distance of points to gene with [start; end] coordinates.
+    
+    Args:
+        points (np.array): genomic points.
+        start (int): gene start.
+        end (int): gene end.
+    
+    Returns:
+        np.array: relative distances.
+    """
     return np.where(points < start, start - points, np.where(points > end, points - end, 0))
 
 
-def calculate_rel_dist(cis_bins_df, gene_start, gene_end):
+def calculate_rel_dist_from_centers(cis_bins_df, gene_start, gene_end):
+    """Finds relative distance of bins centers to gene with [start; end] coordinates.
+    
+    Args:
+        cis_bins_df (pd.DataFrame): genomic bins on the same chromosome as gene.
+        start (int): gene start.
+        end (int): gene end.
+    
+    Returns:
+        np.array: relative distances.
+    """
     bins_centers = (cis_bins_df['start'] + cis_bins_df['end']) // 2
     rel_dists = make_rel_dist_vector(bins_centers, gene_start, gene_end)
     return rel_dists
 
 
 def compute_track(bins_df, centers_df, bg_track, impute=False, imputation_bg=None):
+    """Computes signal and bg track in given bins.
+    
+    Args:
+        bins_df (pd.DataFrame): a bed3 df with bins.
+        centers_df (pd.DataFrame): a contacts centers df.
+        bg_track (pd.DataFrame): a bed4 df with binned bg counts
+            ('chrom', 'start', 'end', 'count').
+        impute (bool): whether to impute missing bg values or not
+            (default: False).
+        imputation_bg (float): an imputation value as a bg count per nt
+            (default: None).
+    
+    Returns:
+        pd.DataFrame: a df with 7 columns: 'chrom', 'start', 'end',
+            'count', 'signal_prob', 'bg_count', 'bg_prob'.
+    
+    Raises:
+        ValueError: in case `impute` is True and `imputation_bg` is None.
+    """
     bins_coverage = calculate_bins_coverage(bins_df, centers_df)
     bins_coverage['signal_prob'] = bins_coverage['count'] / bins_coverage['count'].sum()
     overlap_with_bg = bf.overlap(bins_coverage,
@@ -263,7 +332,7 @@ def compute_track(bins_df, centers_df, bg_track, impute=False, imputation_bg=Non
     rescaled_bg_counts = overlap_with_bg['count_bg'].astype('int64') / bg_bin_sizes * bin_sizes
     if impute:
         if imputation_bg is None:
-            raise ValueError("imputation_bg must be a positive float, not None")
+            raise ValueError("imputation_bg must be a positive float, not None.")
         imputed_rescaled_bg_counts = np.where((bins_coverage['count'] > 0) & (rescaled_bg_counts == 0),
                                               bin_sizes * imputation_bg,
                                               rescaled_bg_counts)

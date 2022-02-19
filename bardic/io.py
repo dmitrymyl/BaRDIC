@@ -41,4 +41,5 @@ def load_rna_parts_of_rdc(rdc_filename, name='gene_name'):
 
 
 def load_rdc(rdc_filename):
+    """Loads rdc file with specific dtypes into pd.DataFrame."""
     return pd.read_csv(rdc_filename, header=0, index_col=None, sep='\t', dtype=rdc_contact_dtypes)
