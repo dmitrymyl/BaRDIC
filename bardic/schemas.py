@@ -94,6 +94,17 @@ rdc_contact_schema = ['rna_chr',
                       'dna_strand',
                       'gene_name']
 
+rdc_contact_schema2 = ['rna_chr',
+                       'rna_start',
+                       'rna_end',
+                       'dna_chr',
+                       'dna_start',
+                       'dna_end',
+                       'gene_name',
+                       'score',
+                       'rna_strand',
+                       'dna_strand']
+
 # My (RDC) contacts dtypes
 rdc_contact_dtypes = {'rna_chr': "category",
                       'rna_start': 'int',
@@ -106,6 +117,17 @@ rdc_contact_dtypes = {'rna_chr': "category",
                       'rna_strand': 'category',
                       'dna_strand': 'category',
                       'gene_name': 'category'}
+
+rdc_contact_dtypes2 = {'rna_chr': "category",
+                       'rna_start': 'int',
+                       'rna_end': 'int',
+                       'dna_chr': 'category',
+                       'dna_start': 'int',
+                       'dna_end': 'int',
+                       'gene_name': 'category',
+                       'score': 'category',
+                       'rna_strand': 'category',
+                       'dna_strand': 'category'}
 
 # change of colnames between transition and my schema
 transition_to_final = {'gene_name_un': "gene_name"}
