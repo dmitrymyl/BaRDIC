@@ -129,6 +129,13 @@ rdc_contact_dtypes2 = {'rna_chr': "category",
                        'rna_strand': 'category',
                        'dna_strand': 'category'}
 
+rdc_to_dna = {'dna_chr': 'chrom',
+              'dna_start': 'start',
+              'dna_end': 'end',
+              'gene_name': 'name',
+              'score': 'score',
+              'dna_strand': 'strand'}
+
 # change of colnames between transition and my schema
 transition_to_final = {'gene_name_un': "gene_name"}
 
@@ -172,3 +179,12 @@ bed_dtypes_noscore = {'chrom': 'category',
                       'name': 'category',
                       'score': 'category',
                       'strand': 'category'}
+
+bedgraph_schema = ['chrom',
+                   'start',
+                   'end',
+                   'score']
+
+bedgraph_dtypes = {'chrom': 'category',
+                   'start': 'int',
+                   'end': 'int'}

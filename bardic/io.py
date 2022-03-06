@@ -1,6 +1,6 @@
 import pandas as pd
 
-from .schemas import rdc_contact_dtypes, rdc_contact_schema2, rdc_contact_dtypes2
+from .schemas import rdc_contact_dtypes, rdc_contact_schema2, rdc_contact_dtypes2, bedgraph_schema, bedgraph_dtypes
 
 
 def load_dna_parts_of_rdc(rdc_filename, name='gene_name'):
@@ -97,3 +97,13 @@ def load_rdc2(rdc_filename):
                        sep='\t',
                        names=rdc_contact_schema2,
                        dtype=rdc_contact_dtypes2)
+
+
+def load_bedgraph(bg_filename):
+    """Loads bedgraph file with specific dtypes into pd.DataFrame."""
+    return pd.read_csv(bg_filename,
+                       header=None,
+                       index_col=None,
+                       sep='\t',
+                       names=bedgraph_schema,
+                       dtype=bedgraph_dtypes)
