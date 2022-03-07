@@ -292,7 +292,7 @@ def calculate_rel_dist_from_centers(cis_bins_df, gene_start, gene_end):
     return rel_dists
 
 
-def compute_track(bins_df, centers_df, bg_track, impute=False, imputation_bg=None):
+def compute_track(bins_df, centers_df, bg_track, impute=False, imputation_bg=None, bg_count_name='count'):
     """Computes signal and bg track in given bins.
     
     Args:
@@ -304,6 +304,7 @@ def compute_track(bins_df, centers_df, bg_track, impute=False, imputation_bg=Non
             (default: False).
         imputation_bg (float): an imputation value as a bg count per nt
             (default: None).
+        bg_count_name (str): 4th column name in bg_track (default: 'count').
     
     Returns:
         pd.DataFrame: a df with 7 columns: 'chrom', 'start', 'end',
@@ -323,13 +324,13 @@ def compute_track(bins_df, centers_df, bg_track, impute=False, imputation_bg=Non
                                  return_index=True)\
                                  .groupby('index')\
                                  .agg({'start': 'min',
-                                         'end': 'max',
-                                         'start_bg': 'min',
-                                         'end_bg': 'max',
-                                         'count_bg': 'sum'})
+                                       'end': 'max',
+                                       'start_bg': 'min',
+                                       'end_bg': 'max',
+                                       f'{bg_count_name}_bg': 'sum'})
     bin_sizes = bins_coverage['end'] - bins_coverage['start']
     bg_bin_sizes = overlap_with_bg['end_bg'].astype('int64') - overlap_with_bg['start_bg'].astype('int64')
-    rescaled_bg_counts = overlap_with_bg['count_bg'].astype('int64') / bg_bin_sizes * bin_sizes
+    rescaled_bg_counts = overlap_with_bg[f'{bg_count_name}_bg'].astype('int64') / bg_bin_sizes * bin_sizes
     if impute:
         if imputation_bg is None:
             raise ValueError("imputation_bg must be a positive float, not None.")
