@@ -1,4 +1,7 @@
 # Schema for Nastya's 6-vote contacts
+from collections import namedtuple
+
+
 annot_contact_schema = ["rna_chr",
                         "rna_start",
                         "rna_end",
@@ -188,3 +191,5 @@ bedgraph_schema = ['chrom',
 bedgraph_dtypes = {'chrom': 'category',
                    'start': 'int',
                    'end': 'int'}
+
+Coords = namedtuple("Coords", "chrom start end")

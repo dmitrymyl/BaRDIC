@@ -1,58 +1,59 @@
+from typing import Dict
 import bioframe as bf
 import numpy as np
 import pandas as pd
 
 
-def make_log_bins(length, log_bin_size):
-    """Makes log-scaled bins.
+# def make_log_bins(length, log_bin_size):
+#     """Makes log-scaled bins.
     
-    Args:
-        length (int, float): region length in log10 scale.
-        log_bin_size (int, float): bin size in log10 scale.
+#     Args:
+#         length (int, float): region length in log10 scale.
+#         log_bin_size (int, float): bin size in log10 scale.
     
-    Returns:
-        np.array: bin edges in linear scale.
-    """
-    bin_edges = (10 ** np.arange(0, np.log10(length), log_bin_size)).round().astype('int')
-    bin_edges[0] = 0
-    bin_edges[-1] = length
-    return bin_edges
+#     Returns:
+#         np.array: bin edges in linear scale.
+#     """
+#     bin_edges = (10 ** np.arange(0, np.log10(length), log_bin_size)).round().astype('int')
+#     bin_edges[0] = 0
+#     bin_edges[-1] = length
+#     return bin_edges
 
 
-def make_cis_bins(log_bin_size, chrom_name, chrom_length, gene_start, gene_end, min_bin_size=20):
-    """Makes cis bins of increasing size from gene borders.
+# def make_cis_bins(log_bin_size, chrom_name, chrom_length, gene_start, gene_end, min_bin_size=20):
+#     """Makes cis bins of increasing size from gene borders.
     
-    Bins are of equal size in a logarithmic scale, but expanding
-    in a linear scale. Bins with linear size less than min_bin_size
-    are discarded.
+#     Bins are of equal size in a logarithmic scale, but expanding
+#     in a linear scale. Bins with linear size less than min_bin_size
+#     are discarded.
 
-    Args:
-        log_bin_size (int, float): bin size in log10 scale.
-        chrom_name (str): chromosome name to put in the dataframe.
-        chrom_length (int): length of the chromosome.
-        gene_start (int): start coordinate of the gene.
-        gene_end (int): end coordinate of the gene.
-        min_bin_size (int): minimal linear bin size to
-            preserve the bin.
+#     Args:
+#         log_bin_size (int, float): bin size in log10 scale.
+#         chrom_name (str): chromosome name to put in the dataframe.
+#         chrom_length (int): length of the chromosome.
+#         gene_start (int): start coordinate of the gene.
+#         gene_end (int): end coordinate of the gene.
+#         min_bin_size (int): minimal linear bin size to
+#             preserve the bin.
     
-    Returns:
-        pd.DataFrame: cis bins as a dataframe with 3 columns:
-            chrom, start, end.
-    """
-    upstream_size = gene_start
-    downstream_size = chrom_length - gene_end
+#     Returns:
+#         pd.DataFrame: cis bins as a dataframe with 3 columns:
+#             chrom, start, end.
+#     """
+#     upstream_size = gene_start
+#     downstream_size = chrom_length - gene_end
 
-    upstream_edges = make_log_bins(upstream_size, log_bin_size)
-    upstream_edges = gene_start - upstream_edges[::-1]
-    upstream_df = pd.DataFrame({'chrom': chrom_name, 'start': upstream_edges[:-1], 'end': upstream_edges[1:]})
+#     upstream_edges = make_log_bins(upstream_size, log_bin_size)
+#     upstream_edges = gene_start - upstream_edges[::-1]
+#     upstream_df = pd.DataFrame({'chrom': chrom_name, 'start': upstream_edges[:-1], 'end': upstream_edges[1:]})
 
-    downstream_edges = make_log_bins(downstream_size, log_bin_size)
-    downstream_edges = gene_end + downstream_edges
-    downstream_df = pd.DataFrame({'chrom': chrom_name, 'start': downstream_edges[:-1], 'end': downstream_edges[1:]})
+#     downstream_edges = make_log_bins(downstream_size, log_bin_size)
+#     downstream_edges = gene_end + downstream_edges
+#     downstream_df = pd.DataFrame({'chrom': chrom_name, 'start': downstream_edges[:-1], 'end': downstream_edges[1:]})
 
-    bins_df = pd.concat((upstream_df, downstream_df), ignore_index=True)
-    bins_df = bins_df[bins_df['end'] - bins_df['start'] >= min_bin_size].copy().reset_index(drop=True)
-    return bins_df
+#     bins_df = pd.concat((upstream_df, downstream_df), ignore_index=True)
+#     bins_df = bins_df[bins_df['end'] - bins_df['start'] >= min_bin_size].copy().reset_index(drop=True)
+#     return bins_df
 
 
 def make_geom_bins(length, start_size, factor):
@@ -104,7 +105,7 @@ def prune_geom_bins(geom_bins, max_linear_size):
         return np.concatenate((scaled_bins, linear_bins[1:]))
 
 
-def make_cis_bins3(factor, start_size, chrom_name, chrom_length, gene_start, gene_end, max_linear_size=None, fillgene=False):
+def make_cis_bins(factor, start_size, chrom_name, chrom_length, gene_start, gene_end, max_linear_size=None, fillgene=False):
     """Makes cis bins of increasing size from gene borders in geometric progression.
     
     Bin i is of size start_size * factor ** i.
@@ -157,7 +158,10 @@ def make_cis_bins3(factor, start_size, chrom_name, chrom_length, gene_start, gen
     return bins_df
 
 
-def make_linear_bins(bin_size, chromsizes_df):
+make_cis_bins3 = make_cis_bins
+
+
+def make_linear_bins(bin_size: int, chromsizes: Dict[str, int]):
     """Makes equal sized bins in linear scale for given chromosomes.
     
     Args:
@@ -172,7 +176,7 @@ def make_linear_bins(bin_size, chromsizes_df):
     """
     chrom_dfs = list()
     bin_size = round(bin_size)
-    for i, (chrom, length) in chromsizes_df.iterrows():
+    for chrom, length in chromsizes.items():
         break_points = list(range(0, length, bin_size))
         starts = break_points[:-1]
         ends = break_points[1:]
@@ -192,7 +196,7 @@ def make_linear_bins(bin_size, chromsizes_df):
     return total_bins
 
 
-def make_trans_bins(bin_size, chromsizes_df, gene_chrom):
+def make_trans_bins(bin_size: int, chromsizes: Dict[str, int], gene_chrom: str):
     """Makes trans bins of equal size.
     
     Uses `make_linear_bins` for binning.
@@ -209,7 +213,9 @@ def make_trans_bins(bin_size, chromsizes_df, gene_chrom):
         pd.DataFrame: a dataframe with bins of 3 columns:
             "chrom", "start", "end".
     """
-    return make_linear_bins(bin_size, chromsizes_df.query(f'chrom != "{gene_chrom}"'))
+    _chromsizes = chromsizes.copy()
+    del _chromsizes[gene_chrom]
+    return make_linear_bins(bin_size, _chromsizes)
 
 
 def calculate_bins_coverage(bins_df, contacts_df):
@@ -230,7 +236,7 @@ def calculate_bins_coverage(bins_df, contacts_df):
     return bf.count_overlaps(bins_df, contacts_df)
 
 
-def make_interval_centers(intervals_df):
+def interval_centers(intervals_df):
     """Make annotation of centers of provided intervals.
     
     Args:
@@ -248,7 +254,12 @@ def make_interval_centers(intervals_df):
     return intervals_centers_df
 
 
-def make_rel_dist(point, start, end):
+make_interval_centers = interval_centers
+
+
+def make_rel_dist(point,
+                  start,
+                  end):
     """Finds relative distance of a point to gene with [start; end] coordinates.
     
     Returns:
@@ -262,7 +273,9 @@ def make_rel_dist(point, start, end):
         return 0
 
 
-def make_rel_dist_vector(points, start, end):
+def make_rel_dist_vector(points,
+                         start,
+                         end):
     """Finds relative distance of points to gene with [start; end] coordinates.
     
     Args:
@@ -276,7 +289,9 @@ def make_rel_dist_vector(points, start, end):
     return np.where(points < start, start - points, np.where(points > end, points - end, 0))
 
 
-def calculate_rel_dist_from_centers(cis_bins_df, gene_start, gene_end):
+def calculate_rel_dist_from_centers(cis_bins_df,
+                                    gene_start,
+                                    gene_end):
     """Finds relative distance of bins centers to gene with [start; end] coordinates.
     
     Args:
@@ -292,7 +307,12 @@ def calculate_rel_dist_from_centers(cis_bins_df, gene_start, gene_end):
     return rel_dists
 
 
-def compute_track(bins_df, centers_df, bg_track, impute=False, imputation_bg=None, bg_count_name='count'):
+def make_subtrack(bins_df,
+                  centers_df,
+                  bg_track,
+                  impute=False,
+                  ifactor=0,
+                  bg_count_name='score'):
     """Computes signal and bg track in given bins.
     
     Args:
@@ -302,7 +322,7 @@ def compute_track(bins_df, centers_df, bg_track, impute=False, imputation_bg=Non
             ('chrom', 'start', 'end', 'count').
         impute (bool): whether to impute missing bg values or not
             (default: False).
-        imputation_bg (float): an imputation value as a bg count per nt
+        ifactor (float): an imputation value as a bg count per nt
             (default: None).
         bg_count_name (str): 4th column name in bg_track (default: 'count').
     
@@ -311,7 +331,7 @@ def compute_track(bins_df, centers_df, bg_track, impute=False, imputation_bg=Non
             'count', 'signal_prob', 'bg_count', 'bg_prob'.
     
     Raises:
-        ValueError: in case `impute` is True and `imputation_bg` is None.
+        ValueError: in case `impute` is True and `ifactor` is None.
     """
     bins_coverage = calculate_bins_coverage(bins_df, centers_df)
     bins_coverage['signal_prob'] = bins_coverage['count'] / bins_coverage['count'].sum()
@@ -332,13 +352,49 @@ def compute_track(bins_df, centers_df, bg_track, impute=False, imputation_bg=Non
     bg_bin_sizes = overlap_with_bg['end_bg'].astype('int64') - overlap_with_bg['start_bg'].astype('int64')
     rescaled_bg_counts = overlap_with_bg[f'{bg_count_name}_bg'].astype('int64') / bg_bin_sizes * bin_sizes
     if impute:
-        if imputation_bg is None:
-            raise ValueError("imputation_bg must be a positive float, not None.")
-        imputed_rescaled_bg_counts = np.where((bins_coverage['count'] > 0) & (rescaled_bg_counts == 0),
-                                              bin_sizes * imputation_bg,
+        if ifactor is None:
+            raise ValueError("ifactor must be a positive float, not None.")
+        dropout = (bins_coverage['count'] > 0) & (rescaled_bg_counts == 0)
+        imputed_rescaled_bg_counts = np.where(dropout,
+                                              bin_sizes * ifactor,
                                               rescaled_bg_counts)
+        bins_coverage['impute'] = dropout
         bins_coverage['bg_count'] = imputed_rescaled_bg_counts
     else:
         bins_coverage['bg_count'] = rescaled_bg_counts
+        bins_coverage['impute'] = False
     bins_coverage['bg_prob'] = bins_coverage['bg_count'] / bins_coverage['bg_count'].sum()
     return bins_coverage
+
+
+compute_track = make_subtrack
+
+
+def make_track(dna_parts: pd.DataFrame,
+               rna_name: str,
+               chrom_dict: Dict[str, int],
+               selection_dict: Dict,
+               annot_dict: Dict,
+               bg_track: pd.DataFrame,
+               impute: bool = False,
+               ifactor: float = 0) -> pd.DataFrame:
+    rna_cis_factor = selection_dict[rna_name]['cis_factor']
+    rna_trans_size = selection_dict[rna_name]['trans_bin_size']
+    cis_start_size = 5000
+    rna_chrom = annot_dict[rna_name]['chrom']
+    rna_chrom_length = chrom_dict[rna_chrom]
+    rna_start = annot_dict[rna_name]['start']
+    rna_end = annot_dict[rna_name]['end']
+    
+    specific_dna_parts = dna_parts.query('name == @rna_name')
+    specific_dna_centers = make_interval_centers(specific_dna_parts)
+    trans_bins = make_trans_bins(rna_trans_size, chrom_dict, rna_chrom)
+    trans_track = make_subtrack(trans_bins, specific_dna_centers, bg_track, impute=impute, ifactor=ifactor, bg_count_name='score')
+    trans_track['raw_bg_prob'] = trans_track['bg_prob']
+    trans_track['scaling_factor'] = 1
+    cis_bins = make_cis_bins(rna_cis_factor, cis_start_size, rna_chrom, rna_chrom_length, rna_start, rna_end, rna_trans_size)
+    cis_track = make_subtrack(cis_bins, specific_dna_centers, bg_track, impute=impute, ifactor=ifactor, bg_count_name='score')
+    cis_track['raw_bg_prob'] = cis_track['bg_prob']
+    cis_track['scaling_factor'] = 1
+    total_track = bf.sort_bedframe(pd.concat((trans_track, cis_track), ignore_index=True))
+    return total_track

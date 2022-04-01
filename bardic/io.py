@@ -107,3 +107,11 @@ def load_bedgraph(bg_filename):
                        sep='\t',
                        names=bedgraph_schema,
                        dtype=bedgraph_dtypes)
+
+
+def load_chromsizes(chromsizes_filename):
+    return pd.read_csv(chromsizes_filename,
+                       header=None,
+                       index_col=None,
+                       sep='\t',
+                       names=('chrom', 'length'))

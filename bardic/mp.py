@@ -97,8 +97,23 @@ def process_by_chunks(iterable, remote_func, chunksize, *args, **kwargs):
     for i, (start, end) in tqdm(enumerate(zip(chunk_indices[:-1], chunk_indices[1:])), desc='Chunks'):
         chunk = iterable[start:end]
         pb = ProgressBar(len(chunk))
-        tasks_pre_launch = [remote_func.remote(item, *args, pb.actor, **kwargs) for item in chunk]
+        tasks_pre_launch = [remote_func.remote(item, *args, pba=pb.actor, **kwargs) for item in chunk]
         pb.print_until_done()
         chunk_results = ray.get(tasks_pre_launch)
         results += chunk_results
     return results
+
+
+def add_pbar(func):
+    def _wrapper(*args, **kwargs):
+        pba = kwargs.pop('pba')
+        try:
+            value = func(*args, **kwargs)
+        except Exception as e:
+            value = None
+            pba.update.remote(1)
+            raise e
+        else:
+            pba.update.remote(1)
+        return value
+    return _wrapper
