@@ -1,7 +1,7 @@
-# Schema for Nastya's 6-vote contacts
 from collections import namedtuple
+from typing import TypedDict
 
-
+# Schema for Nastya's 6-vote contacts
 annot_contact_schema = ["rna_chr",
                         "rna_start",
                         "rna_end",
@@ -193,3 +193,9 @@ bedgraph_dtypes = {'chrom': 'category',
                    'end': 'int'}
 
 Coords = namedtuple("Coords", "chrom start end")
+
+
+class GeneCoord(TypedDict):
+    chrom: str
+    start: int
+    end: int
