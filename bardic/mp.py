@@ -76,7 +76,7 @@ class ProgressBar:
 
 def process_by_chunks(iterable, remote_func, chunksize, *args, **kwargs):
     """Parallelizes function execution with ray in chunks of iterable.
-    
+
     Args:
         iterable (iterable): an iterable with __len__ attribute.
             The elements are passed one by one into the function
@@ -86,7 +86,7 @@ def process_by_chunks(iterable, remote_func, chunksize, *args, **kwargs):
         chunksize (int): a number of simultanious task to schedule.
         args: position arguments to be passed to the function.
         kwargs: keyword arguments to be passed to the function.
-    
+
     Returns:
         list: function execution results.
     """

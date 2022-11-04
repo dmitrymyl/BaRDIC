@@ -13,6 +13,7 @@ class DnaParts:
     def __init__(self,
                  fname: str,
                  chromsizes: Optional[Dict[str, int]] = None,
+                 annotation: Optional[Dict[str, GeneCoord]] = None,
                  chrom_groupname: str = 'chrom_sizes',
                  dna_groupname: str = 'dna_parts') -> None:
         self.fname: Path = Path(fname)
@@ -23,9 +24,11 @@ class DnaParts:
         self.dna_groupname: str = dna_groupname
 
         self._chromsizes: Optional[Dict[str, int]] = chromsizes
-
         if chromsizes is not None:
             self.write_chromsizes()
+        if annotation is not None:
+            self.validate_annotation(annotation, self.chromsizes)
+        self._annotation: Optional[Dict[str, GeneCoord]] = annotation
 
     @property
     def chromsizes(self) -> Dict[str, int]:
@@ -40,6 +43,20 @@ class DnaParts:
     def chromsizes(self, chromsizes_dict: Dict[str, int]) -> None:
         self._chromsizes = chromsizes_dict
         self.write_chromsizes()
+
+    @property
+    def annotation(self) -> Dict[str, GeneCoord]:
+        if self._annotation is None:
+            try:
+                self._annotation = self._get_annotation()
+            except Exception:
+                raise Exception
+        return self._annotation
+
+    @annotation.setter
+    def annotation(self, annotation_dict: Dict[str, GeneCoord]) -> None:
+        self.validate_annotation(annotation_dict, self.chromsizes)
+        self._annotation = annotation_dict
 
     @staticmethod
     def validate_annotation(annotation_dict: Dict[str, GeneCoord],
@@ -103,10 +120,10 @@ class DnaParts:
         return dict(zip(names, sizes))
 
     def _write_dna_parts_single(self,
-                                f,
+                                f: h5py.File,
                                 rna_name: str,
-                                dna_parts: pd.DataFrame,
-                                annotation_dict: Dict[str, GeneCoord]) -> None:
+                                dna_parts: pd.DataFrame) -> None:
+        annotation_dict = self.annotation
         rna_annot = annotation_dict[rna_name]
 
         if self.dna_groupname not in f:
@@ -120,6 +137,7 @@ class DnaParts:
 
         for key, value in rna_annot.items():
             rna_group.attrs[key] = value
+        rna_group.attrs['ncontacts'] = dna_parts.size
         for chrom_name, chrom_df in dna_parts.groupby('chrom'):
             rna_chrom_group = rna_group.create_group(chrom_name)
             starts = chrom_df['start'].values.astype('int64')
@@ -129,19 +147,19 @@ class DnaParts:
 
     def write_dna_parts_single(self,
                                rna_name: str,
-                               dna_parts: pd.DataFrame,
-                               annotation_dict: Dict[str, GeneCoord]) -> None:
+                               dna_parts: pd.DataFrame) -> None:
         with h5py.File(self.fname, 'a') as f:
-            self._write_dna_parts_single(f, rna_name, dna_parts, annotation_dict)
+            self._write_dna_parts_single(f, rna_name, dna_parts)
 
-    def write_dna_parts(self, dna_frame: pd.DataFrame, annotation_dict: Dict[str, GeneCoord]) -> None:
+    def write_dna_parts(self, dna_frame: pd.DataFrame) -> None:
+        annotation_dict = self.annotation
         self.validate_dna_frame(dna_frame, annotation_dict, self.chromsizes)
         self.validate_annotation(annotation_dict, self.chromsizes)
         with h5py.File(self.fname, 'a') as f:
             for rna_name, dna_parts in dna_frame.groupby('name'):
-                self._write_dna_parts_single(f, rna_name, dna_parts, annotation_dict)
+                self._write_dna_parts_single(f, rna_name, dna_parts)
 
-    def _read_dna_parts_single(self, f, rna_name: str) -> pd.DataFrame:
+    def _read_dna_parts_single(self, f: h5py.File, rna_name: str) -> pd.DataFrame:
         if self.dna_groupname not in f:
             raise Exception
         dna_parts_group = f[self.dna_groupname]
@@ -160,7 +178,7 @@ class DnaParts:
             dna_parts = self._read_dna_parts_single(f, rna_name)
         return dna_parts
 
-    def _get_coordinates(self, f, rna_name: str) -> GeneCoord:
+    def _get_coordinates(self, f: h5py.File, rna_name: str) -> GeneCoord:
         if self.dna_groupname not in f:
             raise Exception
         dna_group = f[self.dna_groupname]
@@ -176,7 +194,7 @@ class DnaParts:
             annot = self._get_coordinates(f, rna_name)
         return annot
 
-    def get_annotation(self) -> Dict[str, GeneCoord]:
+    def _get_annotation(self) -> Dict[str, GeneCoord]:
         with h5py.File(self.fname, 'r') as f:
             if self.dna_groupname not in f:
                 raise Exception
@@ -186,3 +204,21 @@ class DnaParts:
                                                    end=rna_group.attrs['end'])
                                for rna_name, rna_group in dna_group.items()}
         return annotation_dict
+
+    def get_num_contacts(self) -> Dict[str, int]:
+        with h5py.File(self.fname, 'r') as f:
+            if self.dna_groupname not in f:
+                raise Exception
+            dna_group = f[self.dna_groupname]
+            sizes = {rna_name: rna_group.attrs['ncontacts'] for rna_name, rna_group in dna_group.items()}
+        return sizes
+
+
+def bed2h5(bed_fname: str,
+           h5_fname: str,
+           chromsizes: Dict[str, int],
+           annotation: Dict[str, GeneCoord]) -> DnaParts:
+    dataset = DnaParts(h5_fname, chromsizes, annotation)
+    dna_frame = bf.read_table(bed_fname, schema='bed6')
+    dataset.write_dna_parts(dna_frame)
+    return dataset
