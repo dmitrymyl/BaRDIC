@@ -2,7 +2,6 @@ import argparse
 import json
 import math
 import os
-import sys
 from collections import namedtuple
 
 import numpy as np
@@ -11,13 +10,13 @@ import ray
 import scipy.interpolate as si
 import scipy.stats as ss
 import statsmodels.api as sm
+
 from bardic.binops import (calculate_rel_dist_from_centers, compute_track,
-                           make_cis_bins3, make_interval_centers, make_rel_dist_vector,
-                           make_trans_bins)
+                           make_cis_bins3, make_interval_centers,
+                           make_rel_dist_vector, make_trans_bins)
 from bardic.io import load_bedgraph, load_dna_parts_of_rdc2
 from bardic.mp import process_by_chunks
 from bardic.schemas import rdc_gene_dtypes, rdc_gene_schema
-
 
 os.environ['RAY_OBJECT_STORE_ALLOW_SLOW_STORAGE'] = "1"
 
@@ -117,7 +116,7 @@ selection_results = pd.read_csv(selection_path,
                                 index_col=None,
                                 sep='\t')
 bin_sizes = {item[1]: (item[2], item[3])
-                 for item in selection_results.loc[:, ['gene_name', 'trans_bin_size', 'cis_factor']].to_records()}
+             for item in selection_results.loc[:, ['gene_name', 'trans_bin_size', 'cis_factor']].to_records()}
 with open(scaling_path, 'r') as infile:
     scaling_dict = json.load(infile)
 background_track = load_bedgraph(background_path)
@@ -161,29 +160,29 @@ def calculate_peaks(rna_name,
         # # trans bins
         trans_bins = make_trans_bins(trans_bin_size, chromsizes_df_r, gene_chrom)
         trans_coverage = compute_track(trans_bins,
-                                    rna_contacts_centers,
-                                    background_df_r,
-                                    impute=True,
-                                    imputation_bg=imputation_bg_r,
-                                    bg_count_name='score')
+                                       rna_contacts_centers,
+                                       background_df_r,
+                                       impute=True,
+                                       imputation_bg=imputation_bg_r,
+                                       bg_count_name='score')
         trans_contacts_num = trans_coverage['count'].sum()
         trans_coverage['raw_bg_prob'] = trans_coverage['bg_prob']
         trans_coverage['scaling_factor'] = 1
 
         # Cis bins
         cis_bins = make_cis_bins3(cis_bin_factor,
-                                cis_start_size_r,
-                                gene_chrom,
-                                chromsizes_dict_r[gene_chrom],
-                                gene_start,
-                                gene_end,
-                                max_linear_size=trans_bin_size)
+                                  cis_start_size_r,
+                                  gene_chrom,
+                                  chromsizes_dict_r[gene_chrom],
+                                  gene_start,
+                                  gene_end,
+                                  max_linear_size=trans_bin_size)
         cis_coverage = compute_track(cis_bins,
-                                    rna_contacts_centers,
-                                    background_df_r,
-                                    impute=True,
-                                    imputation_bg=imputation_bg_r,
-                                    bg_count_name='score')
+                                     rna_contacts_centers,
+                                     background_df_r,
+                                     impute=True,
+                                     imputation_bg=imputation_bg_r,
+                                     bg_count_name='score')
         cis_contacts_num = cis_coverage['count'].sum()
         cis_coverage['raw_bg_prob'] = cis_coverage['bg_prob']
 
@@ -201,9 +200,9 @@ def calculate_peaks(rna_name,
         rel_cis_bin_centers = calculate_rel_dist_from_centers(cis_coverage, gene_start, gene_end)
         rel_cis_bin_starts = make_rel_dist_vector(cis_coverage['start'].astype('int'), gene_start, gene_end)
         rel_cis_bin_ends = make_rel_dist_vector(cis_coverage['end'].astype('int'), gene_start, gene_end)
-        scaling_factors = 10 ** ((si.splev(np.log10(rel_cis_bin_starts + 1), spl, ext=3)\
-                                + si.splev(np.log10(rel_cis_bin_ends + 1), spl, ext=3)\
-                                + si.splev(np.log10(rel_cis_bin_centers + 1), spl, ext=3)) / 3)
+        scaling_factors = 10 ** ((si.splev(np.log10(rel_cis_bin_starts + 1), spl, ext=3)
+                                  + si.splev(np.log10(rel_cis_bin_ends + 1), spl, ext=3)
+                                  + si.splev(np.log10(rel_cis_bin_centers + 1), spl, ext=3)) / 3)
         # scaling_factors = 10 ** si.splev(np.log10(rel_cis_bin_centers), spl, ext=3)
         cis_coverage['scaling_factor'] = scaling_factors
         cis_scaled_bg_probs = cis_coverage['raw_bg_prob'] * cis_coverage['scaling_factor']
@@ -213,15 +212,15 @@ def calculate_peaks(rna_name,
         total_contacts_num = trans_contacts_num + cis_contacts_num
         cis_share = cis_contacts_num / total_contacts_num
         trans_share = trans_contacts_num / total_contacts_num
-        
+
         trans_coverage['raw_bg_prob'] *= trans_share
         trans_coverage['bg_prob'] *= trans_share
         trans_coverage['signal_prob'] *= trans_share
-        
+
         cis_coverage['raw_bg_prob'] *= cis_share
         cis_coverage['bg_prob'] *= cis_share
         cis_coverage['signal_prob'] *= cis_share
-        
+
         total_coverage = pd.concat((trans_coverage, cis_coverage), ignore_index=True)
         cleaned_coverage = total_coverage.query('count > 0').reset_index(drop=True)
         cleaned_coverage['fc'] = (cleaned_coverage['signal_prob'] / cleaned_coverage['bg_prob']).fillna(fill_value)
@@ -229,7 +228,7 @@ def calculate_peaks(rna_name,
         # statistics
         pvals = cleaned_coverage.apply(lambda row: ss.binomtest(k=row['count'], n=total_contacts_num, p=row['bg_prob'], alternative='greater').pvalue, axis=1)
         cleaned_coverage['pvalue'] = pvals
-        
+
         cleaned_coverage['rna_name'] = rna_name
     except Exception:
         print('\n', 'Problem with', rna_name, '\n')

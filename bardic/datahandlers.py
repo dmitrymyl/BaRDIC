@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 
 import bioframe as bf
 import h5py
@@ -137,7 +137,7 @@ class DnaParts:
 
         for key, value in rna_annot.items():
             rna_group.attrs[key] = value
-        rna_group.attrs['ncontacts'] = dna_parts.size
+        rna_group.attrs['total_contacts'] = dna_parts.size
         for chrom_name, chrom_df in dna_parts.groupby('chrom'):
             rna_chrom_group = rna_group.create_group(chrom_name)
             starts = chrom_df['start'].values.astype('int64')
@@ -210,8 +210,25 @@ class DnaParts:
             if self.dna_groupname not in f:
                 raise Exception
             dna_group = f[self.dna_groupname]
-            sizes = {rna_name: rna_group.attrs['ncontacts'] for rna_name, rna_group in dna_group.items()}
+            sizes = {rna_name: rna_group.attrs['total_contacts'] for rna_name, rna_group in dna_group.items()}
         return sizes
+
+    def write_attribute(self, name: str, data: Dict[str, Any]) -> None:
+        with h5py.File(self.fname, 'a') as f:
+            if self.dna_groupname not in f:
+                raise Exception
+            dna_group = f[self.dna_groupname]
+            for rna_name, value in data.items():
+                if rna_name in dna_group:
+                    dna_group[rna_name].attrs[name] = value
+
+    def read_attribute(self, attrname: str) -> Dict[str, Any]:
+        with h5py.File(self.fname, 'r') as f:
+            if self.dna_groupname not in f:
+                raise Exception
+            dna_group = f[self.dna_groupname]
+            data = {rna_name: rna_group.attrs.get(attrname) for rna_name, rna_group in dna_group.items()}
+        return data
 
 
 def bed2h5(bed_fname: str,

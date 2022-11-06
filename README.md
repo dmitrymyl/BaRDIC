@@ -1,8 +1,8 @@
 # BaRDIC
 Binomial RNA-DNA interaction caller.
 
-## TODO
+## Soon
 
-1. Refactor scripts into BaRDIC submodules.
-2. Make HDF5 storage of data.
-3. Add gene bin to bins, but not estimate stats (?).
+1. Nice package with CLI and (maybe) API.
+2. Docs for CLI and (maybe) API.
+3. Docs for algorithm.

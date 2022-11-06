@@ -9,6 +9,5 @@ from .mp import *
 from .optim import *
 from .peaks import *
 from .scaling import *
-from .binnify import *
 from .binops import *
 from .binsizes import *

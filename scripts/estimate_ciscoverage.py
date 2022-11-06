@@ -1,6 +1,5 @@
 from collections import namedtuple
 
-import bioframe as bf
 import numpy as np
 import pandas as pd
 import ray
@@ -94,7 +93,7 @@ selection_results = pd.read_csv(selection_path,
                                 sep='\t')
 
 bin_sizes = {item[1]: (int(item[2]), float(item[3]))
-                 for item in selection_results.loc[:, ['gene_name', 'trans_bin_size', 'cis_factor']].to_records()}
+             for item in selection_results.loc[:, ['gene_name', 'trans_bin_size', 'cis_factor']].to_records()}
 
 background_track = pd.read_csv(background_path,
                                header=None,
@@ -141,7 +140,7 @@ def get_processed_cov_for_scaling(rna_name,
     trans_bin_size, cis_factor = bin_sizes_r.get(rna_name, (None, None))
     if cis_factor is None:
         pba.update.remote(1)
-        return None  
+        return None
     cis_bins = make_cis_bins3(cis_factor,
                               start_size=cis_start_size,
                               chrom_name=gene_chrom,
@@ -155,7 +154,7 @@ def get_processed_cov_for_scaling(rna_name,
     undefined = (cis_coverage['count'] == 0) | (cis_coverage['bg_count'] == 0)
     cis_coverage['fc'] = cis_coverage['signal_prob'] / cis_coverage['bg_prob']
     cis_coverage = cis_coverage.loc[~undefined, :].reset_index(drop=True)
-    
+
     bin_centers = (cis_coverage['start'] + cis_coverage['end']) // 2
     gene_dist = make_rel_dist_vector(bin_centers, gene_start, gene_end)
     cis_coverage['log_gene_dist'] = np.log10(gene_dist)
@@ -166,6 +165,7 @@ def get_processed_cov_for_scaling(rna_name,
     cis_coverage['rna'] = rna_name
     pba.update.remote(1)
     return cis_coverage
+
 
 selected_rnas = [rna_name for rna_name in bin_sizes if rna_name in contacts_df['name'].values]
 

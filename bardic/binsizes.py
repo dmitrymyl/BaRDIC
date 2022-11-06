@@ -1,6 +1,7 @@
 from functools import partial
 from typing import Callable, Dict
 
+import bioframe as bf
 import pandas as pd
 from tqdm.contrib.concurrent import process_map
 
@@ -36,7 +37,9 @@ def calculate_bin_size_single(gene_name: str,
     if chrom_length is None:
         print(gene_name, 'no chromosome found')
         return dict()
-    cis_contacts = dna_df.query('chrom == @gene_chrom').size
+    gene_chrom_contacts = dna_df.query('chrom == @gene_chrom').size
+    genic_contacts = bf.select(dna_df, (gene_chrom, gene_start, gene_end)).size
+    cis_contacts = gene_chrom_contacts - genic_contacts
     trans_contacts = dna_df.query('chrom != @gene_chrom').size
     total_contacts = dna_df.size
 
@@ -86,6 +89,7 @@ def calculate_bin_size_single(gene_name: str,
 
     results_dict = {'gene_name': gene_name,
                     'total_contacts': total_contacts,
+                    'genic_contacts': genic_contacts,
                     'cis_contacts': cis_contacts,
                     'trans_contacts': trans_contacts,
                     'trans_bin_size': trans_bin_size,
@@ -119,9 +123,12 @@ def calculate_bin_sizes(dna_parts: DnaParts,
                         n_cores: int = 1) -> pd.DataFrame:
 
     rna_contact_amount = dna_parts.get_num_contacts()
+    rna_eligibility = {rna_name: rna_num_contacts >= n_contacts
+                       for rna_name, rna_num_contacts in rna_contact_amount.items()}
+    dna_parts.write_attribute('eligible', rna_eligibility)
     selected_rnas = [rna_name
-                     for rna_name, rna_num_contacts in rna_contact_amount.items()
-                     if rna_num_contacts >= n_contacts]
+                     for rna_name, eligible in rna_eligibility.items()
+                     if eligible]
 
     config = {"dna_parts": dna_parts,
               "make_trans_bins": make_trans_bins,
@@ -138,5 +145,16 @@ def calculate_bin_sizes(dna_parts: DnaParts,
 
     func = partial(calculate_bin_size_single, **config)
     bin_selection_results = process_map(func, selected_rnas, max_workers=n_cores)
+
+    attr_names = ['genic_contacts',
+                  'cis_contacts',
+                  'trans_contacts',
+                  'trans_bin_size',
+                  'cis_factor',
+                  'cis_start']
+    for attr_name in attr_names:
+        attr_vals = {item['gene_name']: item[attr_name] for item in bin_selection_results}
+        dna_parts.write_attribute(attr_name, attr_vals)
+
     selection_df = pd.DataFrame.from_records(bin_selection_results).dropna(how='all')
     return selection_df
