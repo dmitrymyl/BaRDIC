@@ -1,10 +1,11 @@
 from pathlib import Path
-from typing import Dict, Optional, Any
+from typing import Any, Dict, Optional
 
 import bioframe as bf
 import h5py
 import numpy as np
 import pandas as pd
+
 from .schemas import GeneCoord
 
 
