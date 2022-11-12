@@ -3,6 +3,8 @@ import bioframe as bf
 import numpy as np
 import pandas as pd
 
+from .schemas import RnaAttrs, GeneCoord
+
 
 def make_geom_bins(length, start_size, factor):
     """Makes geometrically increasing bins.
@@ -259,8 +261,8 @@ def make_subtrack(bins_df,
                   centers_df,
                   bg_track,
                   impute=False,
-                  ifactor=0,
-                  bg_count_name='score'):
+                  ivalue=0,
+                  bg_count_name='count'):
     """Computes signal and bg track in given bins.
 
     Args:
@@ -270,7 +272,7 @@ def make_subtrack(bins_df,
             ('chrom', 'start', 'end', 'count').
         impute (bool): whether to impute missing bg values or not
             (default: False).
-        ifactor (float): an imputation value as a bg count per nt
+        ivalue (float): an imputation value as a bg count per nt
             (default: None).
         bg_count_name (str): 4th column name in bg_track (default: 'count').
 
@@ -279,10 +281,11 @@ def make_subtrack(bins_df,
             'count', 'signal_prob', 'bg_count', 'bg_prob'.
 
     Raises:
-        ValueError: in case `impute` is True and `ifactor` is None.
+        ValueError: in case `impute` is True and `ivalue` is None.
     """
     bins_coverage = calculate_bins_coverage(bins_df, centers_df)
-    bins_coverage['signal_prob'] = bins_coverage['count'] / bins_coverage['count'].sum()
+    bins_coverage.rename(columns={'count': 'signal_count'}, inplace=True)
+    bins_coverage['signal_prob'] = bins_coverage['signal_count'] / bins_coverage['signal_count'].sum()
     overlap_with_bg = bf.overlap(bins_coverage,
                                  bg_track,
                                  how="left",
@@ -300,11 +303,11 @@ def make_subtrack(bins_df,
     bg_bin_sizes = overlap_with_bg['end_bg'].astype('int64') - overlap_with_bg['start_bg'].astype('int64')
     rescaled_bg_counts = overlap_with_bg[f'{bg_count_name}_bg'].astype('int64') / bg_bin_sizes * bin_sizes
     if impute:
-        if ifactor is None:
-            raise ValueError("ifactor must be a positive float, not None.")
-        dropout = (bins_coverage['count'] > 0) & (rescaled_bg_counts == 0)
+        if ivalue is None:
+            raise ValueError("ivalue must be a positive float, not None.")
+        dropout = (bins_coverage['signal_count'] > 0) & (rescaled_bg_counts == 0)
         imputed_rescaled_bg_counts = np.where(dropout,
-                                              bin_sizes * ifactor,
+                                              bin_sizes * ivalue,
                                               rescaled_bg_counts)
         bins_coverage['impute'] = dropout
         bins_coverage['bg_count'] = imputed_rescaled_bg_counts
@@ -318,31 +321,45 @@ def make_subtrack(bins_df,
 compute_track = make_subtrack
 
 
-def make_track(dna_parts: pd.DataFrame,
-               rna_name: str,
-               chrom_dict: Dict[str, int],
-               selection_dict: Dict,
-               annot_dict: Dict,
+def make_track(dna_contacts: pd.DataFrame,
                bg_track: pd.DataFrame,
-               impute: bool = False,
-               ifactor: float = 0) -> pd.DataFrame:
-    rna_cis_factor = selection_dict[rna_name]['cis_factor']
-    rna_trans_size = selection_dict[rna_name]['trans_bin_size']
-    cis_start_size = 5000
-    rna_chrom = annot_dict[rna_name]['chrom']
-    rna_chrom_length = chrom_dict[rna_chrom]
-    rna_start = annot_dict[rna_name]['start']
-    rna_end = annot_dict[rna_name]['end']
+               chromdict: Dict[str, int],
+               gene_coord: GeneCoord,
+               rna_attrs: RnaAttrs,
+               impute=False,
+               ivalue=0):
+    gene_chrom, gene_start, gene_end = gene_coord.chrom, gene_coord.start, gene_coord.end
+    trans_bin_size = rna_attrs.trans_bin_size
+    cis_factor = rna_attrs.cis_factor
+    cis_start = rna_attrs.cis_start
+    dna_parts_centers = make_interval_centers(dna_contacts)
 
-    specific_dna_parts = dna_parts.query('name == @rna_name')
-    specific_dna_centers = make_interval_centers(specific_dna_parts)
-    trans_bins = make_trans_bins(rna_trans_size, chrom_dict, rna_chrom)
-    trans_track = make_subtrack(trans_bins, specific_dna_centers, bg_track, impute=impute, ifactor=ifactor, bg_count_name='score')
-    trans_track['raw_bg_prob'] = trans_track['bg_prob']
-    trans_track['scaling_factor'] = 1
-    cis_bins = make_cis_bins(rna_cis_factor, cis_start_size, rna_chrom, rna_chrom_length, rna_start, rna_end, rna_trans_size)
-    cis_track = make_subtrack(cis_bins, specific_dna_centers, bg_track, impute=impute, ifactor=ifactor, bg_count_name='score')
-    cis_track['raw_bg_prob'] = cis_track['bg_prob']
-    cis_track['scaling_factor'] = 1
-    total_track = bf.sort_bedframe(pd.concat((trans_track, cis_track), ignore_index=True))
+    # trans bins
+    trans_bins = make_trans_bins(trans_bin_size, chromdict, gene_chrom)
+    trans_coverage = compute_track(trans_bins,
+                                   dna_parts_centers,
+                                   bg_track,
+                                   impute=impute,
+                                   ivalue=ivalue)
+    trans_coverage['raw_bg_prob'] = trans_coverage['bg_prob']
+    trans_coverage['scaling_factor'] = 1
+
+    # Cis bins
+    cis_bins = make_cis_bins(cis_factor,
+                             cis_start,
+                             gene_chrom,
+                             chromdict[gene_chrom],
+                             gene_start,
+                             gene_end,
+                             max_linear_size=trans_bin_size)
+    cis_coverage = compute_track(cis_bins,
+                                 dna_parts_centers,
+                                 bg_track,
+                                 impute=impute,
+                                 ivalue=ivalue)
+    cis_coverage['raw_bg_prob'] = cis_coverage['bg_prob']
+    cis_coverage['scaling_factor'] = 1
+
+    # combine
+    total_track = bf.sort_bedframe(pd.concat((trans_coverage, cis_coverage), ignore_index=True))
     return total_track

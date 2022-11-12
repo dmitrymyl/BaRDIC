@@ -1,5 +1,7 @@
 from collections import namedtuple
-from typing import TypedDict
+from dataclasses import dataclass
+import pandas as pd
+from typing import Optional, Dict
 
 # Schema for Nastya's 6-vote contacts
 annot_contact_schema = ["rna_chr",
@@ -195,7 +197,28 @@ bedgraph_dtypes = {'chrom': 'category',
 Coords = namedtuple("Coords", "chrom start end")
 
 
-class GeneCoord(TypedDict):
+@dataclass
+class GeneCoord:
     chrom: str
     start: int
     end: int
+
+
+@dataclass
+class RnaAttrs:
+    eligible: bool
+    cis_factor: float
+    cis_start: int
+    trans_bin_size: int
+    total_contacts: int
+    genic_contacts: int
+    cis_contacts: int
+    trans_contacts: int
+    spline_params: Optional[Dict] = None
+
+
+@dataclass
+class RnaPixelRecord:
+    pixels: pd.DataFrame
+    gene_coord: GeneCoord
+    rna_attrs: RnaAttrs
