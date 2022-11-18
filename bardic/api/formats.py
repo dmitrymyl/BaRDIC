@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import bioframe as bf
 import h5py
 import numpy as np
 import pandas as pd
 
-from .schemas import GeneCoord, RnaAttrs, RnaPixelRecord
+from .schemas import GeneCoord, RnaAttrs, RnaPixelRecord, SplineResult
 
 
 class DnaDataset:
@@ -49,7 +49,7 @@ class DnaDataset:
     def binsizes_selected(self, indicator: bool) -> None:
         if indicator not in (True, False):
             raise ValueError
-        with h5py.File(self.fname, 'w') as f:
+        with h5py.File(self.fname, 'a') as f:
             f.attrs['binsizes_selected'] = indicator
         self._binsizes_selected = indicator
 
@@ -158,7 +158,7 @@ class DnaDataset:
             del dna_parts_group[rna_name]
         rna_group = dna_parts_group.create_group(rna_name)
 
-        for key, value in rna_annot.items():
+        for key, value in asdict(rna_annot).items():
             rna_group.attrs[key] = value
         rna_group.attrs['total_contacts'] = dna_parts.shape[0]
         for chrom_name, chrom_df in dna_parts.groupby('chrom'):
@@ -277,12 +277,55 @@ class Rdc:
                  chromsizes: Optional[Dict[str, int]] = None) -> None:
         self.fname: Path = Path(fname)
         if not self.fname.exists():
-            with h5py.File(self.fname, 'w'):
-                pass
+            with h5py.File(self.fname, 'w') as f:
+                f.attrs['scaling_fitted'] = False
+                f.attrs['peaks_estimated'] = False
 
         self._chromsizes: Optional[Dict[str, int]] = chromsizes
         if chromsizes is not None:
             self.write_chromsizes()
+
+        self._annotation: Optional[Dict[str, GeneCoord]] = None
+        self._scaling_fitted: Optional[bool] = None
+        self._peaks_estimated: Optional[bool] = None
+
+    @property
+    def scaling_fitted(self) -> bool:
+        if self._scaling_fitted is None:
+            with h5py.File(self.fname, 'r') as f:
+                scaling_fitted = f.attrs['scaling_fitted']
+                if scaling_fitted in (True, False):
+                    self._scaling_fitted = scaling_fitted
+                else:
+                    raise Exception
+        return self._scaling_fitted
+
+    @scaling_fitted.setter
+    def scaling_fitted(self, indicator: bool) -> None:
+        if indicator not in (True, False):
+            raise ValueError
+        with h5py.File(self.fname, 'a') as f:
+            f.attrs['scaling_fitted'] = indicator
+        self._scaling_fitted = indicator
+
+    @property
+    def peaks_estimated(self) -> bool:
+        if self._peaks_estimated is None:
+            with h5py.File(self.fname, 'r') as f:
+                peaks_estimated = f.attrs['peaks_estimated']
+                if peaks_estimated in (True, False):
+                    self._peaks_estimated = peaks_estimated
+                else:
+                    raise Exception
+        return self._peaks_estimated
+
+    @peaks_estimated.setter
+    def peaks_estimated(self, indicator: bool) -> None:
+        if indicator not in (True, False):
+            raise ValueError
+        with h5py.File(self.fname, 'a') as f:
+            f.attrs['peaks_estimated'] = indicator
+        self._peaks_estimated = indicator
 
     @property
     def chromsizes(self) -> Dict[str, int]:
@@ -328,8 +371,8 @@ class Rdc:
 
     def write_bg_track(self, bg_track: pd.DataFrame) -> None:
         with h5py.File(self.fname, 'a') as f:
-            if self.bg_groupname not in f:
-                del self.bg_groupname
+            if self.bg_groupname in f:
+                del f[self.bg_groupname]
             bg_group = f.create_group(self.bg_groupname)
             for chrom_name, chrom_df in bg_track.groupby('chrom'):
                 chrom_group = bg_group.create_group(chrom_name)
@@ -337,7 +380,7 @@ class Rdc:
                     chrom_group.create_dataset(key, data=chrom_df[key].values)
 
     def read_bg_track(self) -> pd.DataFrame:
-        with h5py.File(self.fname, 'a') as f:
+        with h5py.File(self.fname, 'r') as f:
             if self.bg_groupname not in f:
                 raise Exception
             bg_group = f[self.bg_groupname]
@@ -379,7 +422,7 @@ class Rdc:
                     chrom_group.create_dataset(col_name, data=col_data)
 
     def write_pixels_single(self, rna_name, pixels_df, rna_coords, rna_attrs) -> None:
-        with h5py.File(self.fname) as f:
+        with h5py.File(self.fname, 'a') as f:
             self._write_pixels_single(f, rna_name, pixels_df, rna_coords, rna_attrs)
 
     def write_pixels(self, data: Dict[str, RnaPixelRecord]) -> None:
@@ -390,22 +433,105 @@ class Rdc:
                 rna_attrs = rna_record.rna_attrs
                 self._write_pixels_single(f, rna_name, pixels_df, rna_coord, rna_attrs)
 
-    def write_array(self, name: str, arrays: Dict[str: np.ndarray]) -> None:
+    def write_array(self, name: str, arrays: Dict[str, np.ndarray]) -> None:
         raise NotImplementedError
 
-    def write_attribute(self, name: str, data: Dict[str, Any]) -> None:
+    def write_attribute(self, attrname: str, data: Dict[str, Any]) -> None:
         with h5py.File(self.fname, 'a') as f:
-            if self.dna_groupname not in f:
+            if self.pixels_groupname not in f:
                 raise Exception
-            dna_group = f[self.dna_groupname]
+            pixels_group = f[self.pixels_groupname]
             for rna_name, value in data.items():
-                if rna_name in dna_group:
-                    dna_group[rna_name].attrs[name] = value
+                if rna_name in pixels_group:
+                    pixels_group[rna_name].attrs[attrname] = value
 
-    def read_attribute(self, attrname: str) -> Dict[str, Any]:
+    def read_attribute(self, attrname) -> Dict[str, Any]:
         with h5py.File(self.fname, 'r') as f:
-            if self.dna_groupname not in f:
+            if self.pixels_groupname not in f:
                 raise Exception
-            dna_group = f[self.dna_groupname]
-            data = {rna_name: rna_group.attrs.get(attrname) for rna_name, rna_group in dna_group.items()}
+            pixels_group = f[self.pixels_groupname]
+            data = {rna_name: rna_group.attrs.get(attrname) for rna_name, rna_group in pixels_group.items()}
         return data
+
+    def write_scaling_splines(self, scaling_splines: Dict[str, SplineResult]) -> None:
+        rna_spline_t = {rna_name: tck.t for rna_name, tck in scaling_splines.items()}
+        rna_spline_c = {rna_name: tck.c for rna_name, tck in scaling_splines.items()}
+        rna_spline_k = {rna_name: tck.k for rna_name, tck in scaling_splines.items()}
+        self.write_attribute('scaling_spline_t', rna_spline_t)
+        self.write_attribute('scaling_spline_c', rna_spline_c)
+        self.write_attribute('scaling_spline_k', rna_spline_k)
+
+    def read_scaling_splines(self) -> Dict[str, SplineResult]:
+        rna_spline_t = self.read_attribute('scaling_spline_t')
+        rna_spline_c = self.read_attribute('scaling_spline_c')
+        rna_spline_k = self.read_attribute('scaling_spline_k')
+        scaling_splines = {rna_name: SplineResult(t=rna_spline_t[rna_name], c=rna_spline_c[rna_name], k=rna_spline_k[rna_name])
+                           for rna_name in rna_spline_t}
+        return scaling_splines
+
+    def _read_pixels_single(self,
+                            f: h5py.File,
+                            rna_name: str,
+                            value_fields: Optional[List] = None,
+                            chrom_type: Optional[str] = None) -> pd.DataFrame:
+        if self.pixels_groupname not in f:
+            raise Exception
+        pixels_group = f[self.pixels_groupname]
+
+        if rna_name not in pixels_group:
+            raise Exception
+        rna_group = pixels_group[rna_name]
+
+        if chrom_type is None:
+            valid_chroms = list(rna_group.keys())
+        elif chrom_type == 'cis':
+            valid_chroms = [rna_group.attrs['chrom']]
+        elif chrom_type == 'trans':
+            valid_chroms = [chrom for chrom in rna_group.keys() if chrom != rna_group.attrs['chrom']]
+        else:
+            raise ValueError
+
+        mandatory_fields = ['start', 'end']
+        all_fields = mandatory_fields
+        chrom_dfs = list()
+
+        for chrom_name, chrom_group in rna_group.items():
+            if chrom_name not in valid_chroms:
+                continue
+
+            if value_fields is None:
+                value_fields = [item for item in chrom_group.keys() if item not in mandatory_fields]
+            all_fields = mandatory_fields + value_fields
+
+            data = {field_name: field_data[()]
+                    for field_name, field_data in chrom_group.items()
+                    if field_name in all_fields}
+            data['chrom'] = chrom_name
+            chrom_dfs.append(pd.DataFrame(data)[['chrom'] + all_fields])
+
+        result = pd.concat(chrom_dfs, ignore_index=True)
+        return result
+
+    def read_pixels_single(self,
+                           rna_name: str,
+                           value_fields: Optional[List] = None,
+                           chrom_type: Optional[str] = None) -> pd.DataFrame:
+        with h5py.File(self.fname, 'r') as f:
+            return self._read_pixels_single(f, rna_name, value_fields=value_fields, chrom_type=chrom_type)
+
+    def _get_annotation(self) -> Dict[str, GeneCoord]:
+        with h5py.File(self.fname, 'r') as f:
+            if self.pixels_groupname not in f:
+                raise Exception
+            pixels_group = f[self.pixels_groupname]
+            annotation_dict = {rna_name: GeneCoord(chrom=rna_group.attrs['chrom'],
+                                                   start=rna_group.attrs['start'],
+                                                   end=rna_group.attrs['end'])
+                               for rna_name, rna_group in pixels_group.items()}
+        return annotation_dict
+
+    @property
+    def annotation(self):
+        if self._annotation is None:
+            self._annotation = self._get_annotation()
+        return self._annotation

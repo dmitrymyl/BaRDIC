@@ -58,5 +58,6 @@ def dnadataset_to_rdc(dna_dataset: DnaDataset, bg_track: pd.DataFrame, fname: st
     results = process_map(cook_pixels_prep, eligible_rnas, dna_contacts_gen, gene_coords_gen, rna_attrs_gen, max_workers=max_workers)
 
     rdc = Rdc(fname, chromdict)
+    rdc.write_bg_track(bg_track)
     rdc.write_pixels(dict(results))
     return rdc

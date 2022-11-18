@@ -14,9 +14,9 @@ import statsmodels.api as sm
 from bardic.api.binops import (calculate_rel_dist_from_centers, compute_track,
                                make_cis_bins3, make_interval_centers,
                                make_rel_dist_vector, make_trans_bins)
-from bardic.api.io import load_bedgraph, load_dna_parts_of_rdc2
+from bardic.legacy.io import load_bedgraph, load_dna_parts_of_rdc2
 from bardic.legacy.mp import process_by_chunks
-from bardic.api.schemas import rdc_gene_dtypes, rdc_gene_schema
+from bardic.legacy.schemas import rdc_gene_dtypes, rdc_gene_schema
 
 os.environ['RAY_OBJECT_STORE_ALLOW_SLOW_STORAGE'] = "1"
 

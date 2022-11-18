@@ -1,6 +1,9 @@
 from dataclasses import dataclass
+from typing import Dict, Optional, Union
+
+import numpy as np
 import pandas as pd
-from typing import Optional, Dict
+
 
 bed_schema = ['chrom',
               'start',
@@ -51,3 +54,10 @@ class RnaPixelRecord:
     pixels: pd.DataFrame
     gene_coord: GeneCoord
     rna_attrs: RnaAttrs
+
+
+@dataclass
+class SplineResult:
+    t: np.ndarray
+    c: np.ndarray
+    k: Union[int, float]
