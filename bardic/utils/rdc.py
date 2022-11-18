@@ -1,8 +1,8 @@
-from .datahandlers import DnaParts, Rdc
+from ..api.formats import DnaDataset, Rdc
 import pandas as pd
-from .schemas import RnaAttrs, RnaPixelRecord
-from .binops import make_track
-from typing import Dict, Any
+from ..api.schemas import RnaAttrs, RnaPixelRecord
+from ..api.binops import make_genomic_track
+from typing import Dict, Any, Optional
 from functools import partial
 from tqdm.contrib.concurrent import process_map
 
@@ -22,30 +22,33 @@ def _get_rna_attrs(rna_name: str, attrs_vector: Dict[str, Dict[str, Any]]) -> Rn
     return RnaAttrs(**data)
 
 
-def _extract_dna_contacts(dna_parts: DnaParts, rna_name: str) -> pd.DataFrame:
-    return dna_parts.read_dna_parts_single(rna_name)
+def _extract_dna_contacts(dna_dataset: DnaDataset, rna_name: str) -> pd.DataFrame:
+    return dna_dataset.read_dna_parts_single(rna_name)
 
 
-def _cook_pixels(rna_name, dna_contacts, rna_annot, rna_attrs, bg_track, chromdict, impute=False, ivalue=0):
-    dna_track = make_track(dna_contacts, bg_track, chromdict, rna_annot, rna_attrs, impute=impute, ivalue=ivalue)
+def _cook_pixels(rna_name, dna_contacts, rna_annot, rna_attrs, bg_track, chromdict, ivalue=None):
+    dna_track = make_genomic_track(dna_contacts, bg_track, chromdict, rna_annot, rna_attrs, ivalue=ivalue)
     return rna_name, RnaPixelRecord(**{'pixels': dna_track, 'gene_coord': rna_annot, 'rna_attrs': rna_attrs})
 
 
-def dnaparts_to_rdc(dna_parts: DnaParts, bg_track: pd.DataFrame, fname: str, impute: bool = False, ifactor: float = 0., max_workers=2) -> Rdc:
-    ivalue = imputation_value(bg_track, ifactor)
-    chromdict = dna_parts.chromsizes
-    annotation = dna_parts.annotation
+def dnadataset_to_rdc(dna_dataset: DnaDataset, bg_track: pd.DataFrame, fname: str, ifactor: Optional[float] = None, max_workers=2) -> Rdc:
+    if ifactor is None:
+        ivalue = None
+    else:
+        ivalue = imputation_value(bg_track, ifactor)
+    chromdict = dna_dataset.chromsizes
+    annotation = dna_dataset.annotation
     rna_attr_names = ('eligible',
                       'cis_factor', 'cis_start', 'trans_bin_size',
                       'total_contacts', 'genic_contacts', 'cis_contacts', 'trans_contacts')
-    rnas_attrs_vector = {attr: dna_parts.read_attribute(attr)
+    rnas_attrs_vector = {attr: dna_dataset.read_attribute(attr)
                          for attr in rna_attr_names}
     eligible_rnas = [rna_name
                      for rna_name, eligible in rnas_attrs_vector['eligible'].items()
                      if eligible]
 
-    cook_pixels_prep = partial(_cook_pixels, bg_track=bg_track, chromdict=chromdict, impute=impute, ivalue=ivalue)
-    dna_contacts_gen = (_extract_dna_contacts(dna_parts, rna_name)
+    cook_pixels_prep = partial(_cook_pixels, bg_track=bg_track, chromdict=chromdict, ivalue=ivalue)
+    dna_contacts_gen = (_extract_dna_contacts(dna_dataset, rna_name)
                         for rna_name in eligible_rnas)
     gene_coords_gen = (annotation[rna_name]
                        for rna_name in eligible_rnas)

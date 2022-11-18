@@ -1,7 +1,7 @@
 import argparse
 import pandas as pd
-from bardic.io import load_rdc2
-from bardic.schemas import rdc_gene_dtypes, rdc_gene_schema
+from bardic.api.io import load_rdc2
+from bardic.api.schemas import rdc_gene_dtypes, rdc_gene_schema
 
 
 parser = argparse.ArgumentParser(description='make contacts stats')

@@ -1,7 +1,7 @@
 import pandas as pd
-from bardic.io import load_rdc2
-from bardic.schemas import rdc_to_dna
-from bardic.binops import make_linear_bins, make_interval_centers, calculate_bins_coverage
+from bardic.api.io import load_rdc2
+from bardic.api.schemas import rdc_to_dna
+from bardic.api.binops import make_linear_bins, make_interval_centers, calculate_bins_coverage
 import argparse
 
 

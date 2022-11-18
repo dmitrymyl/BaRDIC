@@ -4,10 +4,10 @@ from collections import namedtuple
 
 import pandas as pd
 import ray
-from bardic.io import load_dna_parts_of_rdc2
-from bardic.schemas import rdc_gene_dtypes, rdc_gene_schema
-from bardic.binsizes import select_bin_sizes
-from bardic.convert import encode_chromsizes
+from bardic.api.io import load_dna_parts_of_rdc2
+from bardic.api.schemas import rdc_gene_dtypes, rdc_gene_schema
+from bardic.utils.binsizes import select_bin_sizes
+from bardic.api.convert import encode_chromsizes
 
 
 parser = argparse.ArgumentParser(description='select bin size for specific RNAs')

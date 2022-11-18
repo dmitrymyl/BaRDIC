@@ -11,12 +11,12 @@ import scipy.interpolate as si
 import scipy.stats as ss
 import statsmodels.api as sm
 
-from bardic.binops import (calculate_rel_dist_from_centers, compute_track,
-                           make_cis_bins3, make_interval_centers,
-                           make_rel_dist_vector, make_trans_bins)
-from bardic.io import load_bedgraph, load_dna_parts_of_rdc2
+from bardic.api.binops import (calculate_rel_dist_from_centers, compute_track,
+                               make_cis_bins3, make_interval_centers,
+                               make_rel_dist_vector, make_trans_bins)
+from bardic.api.io import load_bedgraph, load_dna_parts_of_rdc2
 from bardic.mp import process_by_chunks
-from bardic.schemas import rdc_gene_dtypes, rdc_gene_schema
+from bardic.api.schemas import rdc_gene_dtypes, rdc_gene_schema
 
 os.environ['RAY_OBJECT_STORE_ALLOW_SLOW_STORAGE'] = "1"
 

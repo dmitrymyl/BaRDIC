@@ -5,13 +5,13 @@ import bioframe as bf
 import pandas as pd
 from tqdm.contrib.concurrent import process_map
 
-from .binops import calculate_bins_coverage, make_cis_bins, make_trans_bins
-from .datahandlers import DnaParts
-from .optim import optimize_cost_function
+from ..api.binops import calculate_bins_coverage, make_cis_bins, make_trans_bins
+from ..api.formats import DnaDataset
+from ..api.optim import optimize_cost_function
 
 
 def calculate_bin_size_single(gene_name: str,
-                              dna_parts: DnaParts,
+                              dna_dataset: DnaDataset,
                               make_trans_bins: Callable = make_trans_bins,
                               trans_min: int = 10000,
                               trans_max: int = 1000000,
@@ -23,9 +23,9 @@ def calculate_bin_size_single(gene_name: str,
                               cis_start: int = 5000,
                               tolerance: float = 0.01,
                               w: int = 1) -> Dict:
-    dna_df = dna_parts.read_dna_parts_single(gene_name)
-    chromsizes = dna_parts.chromsizes
-    annotation = dna_parts.annotation
+    dna_df = dna_dataset.read_dna_parts_single(gene_name)
+    chromsizes = dna_dataset.chromsizes
+    annotation = dna_dataset.annotation
     gene_annot = annotation.get(gene_name)
     if gene_annot is None:
         print(gene_name, 'no annotation found')
@@ -107,7 +107,7 @@ def calculate_bin_size_single(gene_name: str,
     return results_dict
 
 
-def calculate_bin_sizes(dna_parts: DnaParts,
+def calculate_bin_sizes(dna_dataset: DnaDataset,
                         n_contacts: int = 1000,
                         make_trans_bins: Callable = make_trans_bins,
                         trans_min: int = 10000,
@@ -122,15 +122,15 @@ def calculate_bin_sizes(dna_parts: DnaParts,
                         w: int = 1,
                         n_cores: int = 1) -> pd.DataFrame:
 
-    rna_contact_amount = dna_parts.get_num_contacts()
+    rna_contact_amount = dna_dataset.get_num_contacts()
     rna_eligibility = {rna_name: rna_num_contacts >= n_contacts
                        for rna_name, rna_num_contacts in rna_contact_amount.items()}
-    dna_parts.write_attribute('eligible', rna_eligibility)
+    dna_dataset.write_attribute('eligible', rna_eligibility)
     selected_rnas = [rna_name
                      for rna_name, eligible in rna_eligibility.items()
                      if eligible]
 
-    config = {"dna_parts": dna_parts,
+    config = {"dna_dataset": dna_dataset,
               "make_trans_bins": make_trans_bins,
               "trans_min": trans_min,
               "trans_max": trans_max,
@@ -154,7 +154,8 @@ def calculate_bin_sizes(dna_parts: DnaParts,
                   'cis_start']
     for attr_name in attr_names:
         attr_vals = {item['gene_name']: item[attr_name] for item in bin_selection_results}
-        dna_parts.write_attribute(attr_name, attr_vals)
+        dna_dataset.write_attribute(attr_name, attr_vals)
+    dna_dataset.binsizes_selected = True
 
     selection_df = pd.DataFrame.from_records(bin_selection_results).dropna(how='all')
     return selection_df

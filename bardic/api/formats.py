@@ -12,20 +12,20 @@ import pandas as pd
 from .schemas import GeneCoord, RnaAttrs, RnaPixelRecord
 
 
-class DnaParts:
+class DnaDataset:
+    chrom_groupname: str = "chrom_sizes"
+    dna_groupname: str = "dna_parts"
 
     def __init__(self,
                  fname: str,
                  chromsizes: Optional[Dict[str, int]] = None,
-                 annotation: Optional[Dict[str, GeneCoord]] = None,
-                 chrom_groupname: str = 'chrom_sizes',
-                 dna_groupname: str = 'dna_parts') -> None:
+                 annotation: Optional[Dict[str, GeneCoord]] = None) -> None:
         self.fname: Path = Path(fname)
         if not self.fname.exists():
-            with h5py.File(self.fname, 'w'):
-                pass
-        self.chrom_groupname: str = chrom_groupname
-        self.dna_groupname: str = dna_groupname
+            with h5py.File(self.fname, 'w') as f:
+                f.attrs["binsizes_selected"] = False
+
+        self._binsizes_selected = None
 
         self._chromsizes: Optional[Dict[str, int]] = chromsizes
         if chromsizes is not None:
@@ -33,6 +33,25 @@ class DnaParts:
         if annotation is not None:
             self.validate_annotation(annotation, self.chromsizes)
         self._annotation: Optional[Dict[str, GeneCoord]] = annotation
+
+    @property
+    def binsizes_selected(self) -> bool:
+        if self._binsizes_selected is None:
+            with h5py.File(self.fname, 'r') as f:
+                binsizes_selected = f.attrs['binsizes_selected']
+                if binsizes_selected in (True, False):
+                    self._binsizes_selected = binsizes_selected
+                else:
+                    raise Exception
+        return self._binsizes_selected
+
+    @binsizes_selected.setter
+    def binsizes_selected(self, indicator: bool) -> None:
+        if indicator not in (True, False):
+            raise ValueError
+        with h5py.File(self.fname, 'w') as f:
+            f.attrs['binsizes_selected'] = indicator
+        self._binsizes_selected = indicator
 
     @property
     def chromsizes(self) -> Dict[str, int]:
@@ -233,16 +252,6 @@ class DnaParts:
             dna_group = f[self.dna_groupname]
             data = {rna_name: rna_group.attrs.get(attrname) for rna_name, rna_group in dna_group.items()}
         return data
-
-
-def bed2h5(bed_fname: str,
-           h5_fname: str,
-           chromsizes: Dict[str, int],
-           annotation: Dict[str, GeneCoord]) -> DnaParts:
-    dataset = DnaParts(h5_fname, chromsizes, annotation)
-    dna_frame = bf.read_table(bed_fname, schema='bed6')
-    dataset.write_dna_parts(dna_frame)
-    return dataset
 
 
 class Rdc:

@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Optional, Union, cast
 import bioframe as bf
 import numpy as np
 import pandas as pd
@@ -6,7 +6,7 @@ import pandas as pd
 from .schemas import RnaAttrs, GeneCoord
 
 
-def make_geom_bins(length, start_size, factor):
+def make_geom_bins(length: int, start_size: int, factor: Union[int, float]) -> np.ndarray:
     """Makes geometrically increasing bins.
 
     Args:
@@ -33,7 +33,7 @@ def make_geom_bins(length, start_size, factor):
     return bin_edges
 
 
-def prune_geom_bins(geom_bins, max_linear_size):
+def prune_geom_bins(geom_bins: np.ndarray, max_linear_size: int) -> np.ndarray:
     """Prunes geometric bins to maximal linear size.
 
     Given output from `make_geom_bins` removes all bins
@@ -46,7 +46,8 @@ def prune_geom_bins(geom_bins, max_linear_size):
         max_linear_size (int): maximal linear size.
     """
     chrom_length = geom_bins[-1]
-    scaled_bins = geom_bins[:np.sum(np.diff(geom_bins) <= max_linear_size) + 1]
+    scaled_idx = cast(int, np.sum(np.diff(geom_bins) <= max_linear_size)) + 1
+    scaled_bins = geom_bins[: scaled_idx]
     if len(scaled_bins) == len(geom_bins):
         return geom_bins
     else:
@@ -55,7 +56,14 @@ def prune_geom_bins(geom_bins, max_linear_size):
         return np.concatenate((scaled_bins, linear_bins[1:]))
 
 
-def make_cis_bins(factor, start_size, chrom_name, chrom_length, gene_start, gene_end, max_linear_size=None, fillgene=False):
+def make_cis_bins(factor: Union[int, float],
+                  start_size: int,
+                  chrom_name: str,
+                  chrom_length: int,
+                  gene_start: int,
+                  gene_end: int,
+                  max_linear_size: Optional[int] = None,
+                  fillgene: bool = False) -> pd.DataFrame:
     """Makes cis bins of increasing size from gene borders in geometric progression.
 
     Bin i is of size start_size * factor ** i.
@@ -111,7 +119,7 @@ def make_cis_bins(factor, start_size, chrom_name, chrom_length, gene_start, gene
 make_cis_bins3 = make_cis_bins
 
 
-def make_linear_bins(bin_size: int, chromsizes: Dict[str, int]):
+def make_linear_bins(bin_size: int, chromsizes: Dict[str, int]) -> pd.DataFrame:
     """Makes equal sized bins in linear scale for given chromosomes.
 
     Args:
@@ -146,7 +154,7 @@ def make_linear_bins(bin_size: int, chromsizes: Dict[str, int]):
     return total_bins
 
 
-def make_trans_bins(bin_size: int, chromsizes: Dict[str, int], gene_chrom: str):
+def make_trans_bins(bin_size: int, chromsizes: Dict[str, int], gene_chrom: str) -> pd.DataFrame:
     """Makes trans bins of equal size.
 
     Uses `make_linear_bins` for binning.
@@ -168,7 +176,7 @@ def make_trans_bins(bin_size: int, chromsizes: Dict[str, int], gene_chrom: str):
     return make_linear_bins(bin_size, _chromsizes)
 
 
-def calculate_bins_coverage(bins_df, contacts_df):
+def calculate_bins_coverage(bins_df: pd.DataFrame, contacts_df: pd.DataFrame) -> pd.DataFrame:
     """Calculates how many contacts overlap every bin.
 
     Args:
@@ -186,7 +194,7 @@ def calculate_bins_coverage(bins_df, contacts_df):
     return bf.count_overlaps(bins_df, contacts_df)
 
 
-def interval_centers(intervals_df):
+def interval_centers(intervals_df: pd.DataFrame) -> pd.DataFrame:
     """Make annotation of centers of provided intervals.
 
     Args:
@@ -207,9 +215,9 @@ def interval_centers(intervals_df):
 make_interval_centers = interval_centers
 
 
-def make_rel_dist(point,
-                  start,
-                  end):
+def make_rel_dist(point: int,
+                  start: int,
+                  end: int) -> int:
     """Finds relative distance of a point to gene with [start; end] coordinates.
 
     Returns:
@@ -223,9 +231,9 @@ def make_rel_dist(point,
         return 0
 
 
-def make_rel_dist_vector(points,
-                         start,
-                         end):
+def make_rel_dist_vector(points: np.ndarray,
+                         start: int,
+                         end: int) -> np.ndarray:
     """Finds relative distance of points to gene with [start; end] coordinates.
 
     Args:
@@ -239,9 +247,9 @@ def make_rel_dist_vector(points,
     return np.where(points < start, start - points, np.where(points > end, points - end, 0))
 
 
-def calculate_rel_dist_from_centers(cis_bins_df,
-                                    gene_start,
-                                    gene_end):
+def calculate_rel_dist_from_centers(cis_bins_df: pd.DataFrame,
+                                    gene_start: int,
+                                    gene_end: int) -> np.ndarray:
     """Finds relative distance of bins centers to gene with [start; end] coordinates.
 
     Args:
@@ -257,12 +265,11 @@ def calculate_rel_dist_from_centers(cis_bins_df,
     return rel_dists
 
 
-def make_subtrack(bins_df,
-                  centers_df,
-                  bg_track,
-                  impute=False,
-                  ivalue=0,
-                  bg_count_name='count'):
+def make_track(bins_df: pd.DataFrame,
+               centers_df: pd.DataFrame,
+               bg_track: pd.DataFrame,
+               ivalue: Optional[Union[int, float]] = None,
+               bg_count_name: str = 'count') -> pd.DataFrame:
     """Computes signal and bg track in given bins.
 
     Args:
@@ -302,9 +309,9 @@ def make_subtrack(bins_df,
     bin_sizes = bins_coverage['end'] - bins_coverage['start']
     bg_bin_sizes = overlap_with_bg['end_bg'].astype('int64') - overlap_with_bg['start_bg'].astype('int64')
     rescaled_bg_counts = overlap_with_bg[f'{bg_count_name}_bg'].astype('int64') / bg_bin_sizes * bin_sizes
-    if impute:
-        if ivalue is None:
-            raise ValueError("ivalue must be a positive float, not None.")
+    if ivalue is not None:
+        if not (isinstance(ivalue, int) or isinstance(ivalue, float)):
+            raise ValueError("ivalue must be int or float.")
         dropout = (bins_coverage['signal_count'] > 0) & (rescaled_bg_counts == 0)
         imputed_rescaled_bg_counts = np.where(dropout,
                                               bin_sizes * ivalue,
@@ -318,16 +325,15 @@ def make_subtrack(bins_df,
     return bins_coverage
 
 
-compute_track = make_subtrack
+compute_track = make_track
 
 
-def make_track(dna_contacts: pd.DataFrame,
-               bg_track: pd.DataFrame,
-               chromdict: Dict[str, int],
-               gene_coord: GeneCoord,
-               rna_attrs: RnaAttrs,
-               impute=False,
-               ivalue=0):
+def make_genomic_track(dna_contacts: pd.DataFrame,
+                       bg_track: pd.DataFrame,
+                       chromdict: Dict[str, int],
+                       gene_coord: GeneCoord,
+                       rna_attrs: RnaAttrs,
+                       ivalue: Optional[Union[int, float]] = None) -> pd.DataFrame:
     gene_chrom, gene_start, gene_end = gene_coord.chrom, gene_coord.start, gene_coord.end
     trans_bin_size = rna_attrs.trans_bin_size
     cis_factor = rna_attrs.cis_factor
@@ -336,11 +342,10 @@ def make_track(dna_contacts: pd.DataFrame,
 
     # trans bins
     trans_bins = make_trans_bins(trans_bin_size, chromdict, gene_chrom)
-    trans_coverage = compute_track(trans_bins,
-                                   dna_parts_centers,
-                                   bg_track,
-                                   impute=impute,
-                                   ivalue=ivalue)
+    trans_coverage = make_track(trans_bins,
+                                dna_parts_centers,
+                                bg_track,
+                                ivalue=ivalue)
     trans_coverage['raw_bg_prob'] = trans_coverage['bg_prob']
     trans_coverage['scaling_factor'] = 1
 
@@ -352,11 +357,10 @@ def make_track(dna_contacts: pd.DataFrame,
                              gene_start,
                              gene_end,
                              max_linear_size=trans_bin_size)
-    cis_coverage = compute_track(cis_bins,
-                                 dna_parts_centers,
-                                 bg_track,
-                                 impute=impute,
-                                 ivalue=ivalue)
+    cis_coverage = make_track(cis_bins,
+                              dna_parts_centers,
+                              bg_track,
+                              ivalue=ivalue)
     cis_coverage['raw_bg_prob'] = cis_coverage['bg_prob']
     cis_coverage['scaling_factor'] = 1
 
