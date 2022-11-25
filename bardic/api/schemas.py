@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, astuple
 from typing import Dict, Optional, Union
 
 import numpy as np
@@ -61,3 +61,6 @@ class SplineResult:
     t: np.ndarray
     c: np.ndarray
     k: Union[int, float]
+
+    def __iter__(self):
+        return iter(astuple(self))

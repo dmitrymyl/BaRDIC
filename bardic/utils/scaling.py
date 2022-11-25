@@ -1,6 +1,6 @@
 from functools import partial
 from math import isnan
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -9,7 +9,7 @@ import scipy.stats as ss
 from scipy.stats._stats_mstats_common import LinregressResult
 from tqdm.contrib.concurrent import process_map
 
-from ..api.binops import make_rel_dist_vector
+from ..api.binops import make_rel_dist_vector, calculate_rel_dist_from_centers
 from ..api.formats import Rdc
 from ..api.schemas import GeneCoord, SplineResult
 
@@ -144,10 +144,80 @@ def refine_rna_splines(rna_splines: Dict[str, SplineResult],
     return rna_splines_refined
 
 
+def rescale_rdc_data_single(rna_name: str,
+                            gene_coord: GeneCoord,
+                            n_cis_contacts: int,
+                            n_trans_contacts: int,
+                            rdc_data: Rdc,
+                            fill_value: Union[int, float]) -> Tuple[str, pd.DataFrame]:
+    cis_pixels = rdc_data.read_pixels_single(rna_name, value_fields=['raw_bg_prob', 'bg_prob', 'signal_prob'], chrom_type='cis')
+    trans_pixels = rdc_data.read_pixels_single(rna_name, value_fields=['raw_bg_prob', 'bg_prob', 'signal_prob'], chrom_type='trans')
+    single_spline = tuple(rdc_data.read_scaling_single(rna_name))
+    gene_start = gene_coord.start
+    gene_end = gene_coord.end
+    if not isnan(single_spline[2]):
+        spl = single_spline
+        rel_cis_bin_centers = calculate_rel_dist_from_centers(cis_pixels, gene_start, gene_end)
+        rel_cis_bin_starts = make_rel_dist_vector(cis_pixels['start'], gene_start, gene_end)
+        rel_cis_bin_ends = make_rel_dist_vector(cis_pixels['end'], gene_start, gene_end)
+        scaling_factors = 10 ** ((si.splev(np.log10(rel_cis_bin_starts + 1), spl, ext=3)
+                                 + si.splev(np.log10(rel_cis_bin_ends + 1), spl, ext=3)
+                                 + si.splev(np.log10(rel_cis_bin_centers + 1), spl, ext=3)) / 3)
+        cis_pixels['scaling_factor'] = scaling_factors
+    else:
+        cis_pixels['scaling_factor'] = 1
+
+    trans_pixels['scaling_factor'] = 1
+
+    cis_scaled_bg_probs = cis_pixels['raw_bg_prob'] * cis_pixels['scaling_factor']
+    cis_pixels['bg_prob'] = cis_scaled_bg_probs / cis_scaled_bg_probs.sum()
+
+    trans_scaled_bg_probs = trans_pixels['raw_bg_prob'] * trans_pixels['scaling_factor']
+    trans_pixels['bg_prob'] = trans_scaled_bg_probs / trans_scaled_bg_probs.sum()
+    total_interested_contacts = n_cis_contacts + n_trans_contacts
+    cis_share = n_cis_contacts / total_interested_contacts
+    trans_share = n_trans_contacts / total_interested_contacts
+
+    trans_pixels['raw_bg_prob'] *= trans_share
+    trans_pixels['bg_prob'] *= trans_share
+    trans_pixels['signal_prob'] *= trans_share
+
+    cis_pixels['raw_bg_prob'] *= cis_share
+    cis_pixels['bg_prob'] *= cis_share
+    cis_pixels['signal_prob'] *= cis_share
+
+    trans_pixels['fc'] = (trans_pixels['signal_prob'] / trans_pixels['bg_prob']).fillna(fill_value)
+    cis_pixels['fc'] = (cis_pixels['signal_prob'] / cis_pixels['bg_prob']).fillna(fill_value)
+    changed_cols = ['raw_bg_prob', 'bg_prob', 'signal_prob', 'scaling_factor', 'fc']
+    all_pixels = pd.concat([trans_pixels, cis_pixels], ignore_index=True)[['chrom'] + changed_cols]
+    return rna_name, all_pixels
+
+
+def rescale_rdc_data(rdc_data: Rdc,
+                     fill_value: Union[int, float] = 1,
+                     max_workers: int = 1):
+    cis_contacts_nums = rdc_data.read_attribute('cis_contacts')
+    trans_contacts_nums = rdc_data.read_attribute('trans_contacts')
+    annotation = rdc_data.annotation
+    if not rdc_data.scaling_fitted:
+        raise Exception
+
+    func = partial(rescale_rdc_data_single, rdc_data=rdc_data, fill_value=fill_value)
+    rna_names = list(annotation.keys())
+    gene_coords = (annotation[rna_name] for rna_name in rna_names)
+    n_cis_contacts_gen = (cis_contacts_nums[rna_name] for rna_name in rna_names)
+    n_trans_contacts_gen = (trans_contacts_nums[rna_name] for rna_name in rna_names)
+    results = dict(process_map(func, rna_names, gene_coords, n_cis_contacts_gen, n_trans_contacts_gen, max_workers=max_workers))
+    changed_cols = ['raw_bg_prob', 'bg_prob', 'signal_prob', 'scaling_factor', 'fc']
+    for col in changed_cols:
+        rdc_data.write_array(col, results)
+
+
 def calculate_scaling_splines(rdc_data: Rdc,
                               degree: int = 3,
                               no_refine: bool = False,
                               max_threshold: float = 0.05,
+                              fill_value: Union[int, float] = 1,
                               max_workers: int = 2) -> None:
     cis_coverage = get_cis_coverage(rdc_data)
     _, chrom_spline_scaling = get_chrom_scaling(cis_coverage,
@@ -163,7 +233,4 @@ def calculate_scaling_splines(rdc_data: Rdc,
     refined_rna_splines = refine_rna_splines(rna_spline_scaling, chrom_spline_scaling, annotation)
     rdc_data.write_scaling_splines(refined_rna_splines)
     rdc_data.scaling_fitted = True
-
-
-def correct_rdc_probs(rdc_data: Rdc) -> None:
-    pass
+    rescale_rdc_data(rdc_data, fill_value, max_workers)

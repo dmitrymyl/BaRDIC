@@ -30,18 +30,18 @@ def calculate_bin_size_single(gene_name: str,
     if gene_annot is None:
         print(gene_name, 'no annotation found')
         return dict()
-    gene_chrom = gene_annot["chrom"]
-    gene_start = gene_annot["start"]
-    gene_end = gene_annot["end"]
+    gene_chrom = gene_annot.chrom
+    gene_start = gene_annot.start
+    gene_end = gene_annot.end
     chrom_length = chromsizes.get(gene_chrom)
     if chrom_length is None:
         print(gene_name, 'no chromosome found')
         return dict()
-    gene_chrom_contacts = dna_df.query('chrom == @gene_chrom').size
-    genic_contacts = bf.select(dna_df, (gene_chrom, gene_start, gene_end)).size
+    gene_chrom_contacts = len(dna_df.query('chrom == @gene_chrom'))
+    genic_contacts = len(bf.select(dna_df, (gene_chrom, gene_start, gene_end)))
     cis_contacts = gene_chrom_contacts - genic_contacts
-    trans_contacts = dna_df.query('chrom != @gene_chrom').size
-    total_contacts = dna_df.size
+    trans_contacts = len(dna_df.query('chrom != @gene_chrom'))
+    total_contacts = len(dna_df)
 
     trans_bin_size, trans_status = optimize_cost_function(dna_df,
                                                           make_trans_bins,

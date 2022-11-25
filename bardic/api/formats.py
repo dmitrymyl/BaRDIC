@@ -12,9 +12,36 @@ import pandas as pd
 from .schemas import GeneCoord, RnaAttrs, RnaPixelRecord, SplineResult
 
 
+class StatusProperty:
+
+    def __set_name__(self, owner: Rdc, name: str) -> None:
+        self.private_name = '_' + name
+        self.public_name = name
+
+    def __get__(self, obj: Rdc, objtype=None) -> bool:
+        value = getattr(obj, self.private_name)
+        if value is None:
+            with h5py.File(obj.fname, 'r') as f:
+                value = f.attrs[self.public_name]
+                if value in (True, False):
+                    setattr(obj, self.private_name, value)
+                else:
+                    raise Exception
+        return value
+
+    def __set__(self, obj: Rdc, value: bool) -> None:
+        if value not in (True, False):
+            raise ValueError
+        with h5py.File(obj.fname, 'a') as f:
+            f.attrs['scaling_fitted'] = value
+        setattr(obj, self.private_name, value)
+
+
 class DnaDataset:
     chrom_groupname: str = "chrom_sizes"
     dna_groupname: str = "dna_parts"
+
+    binsizes_selected = StatusProperty()
 
     def __init__(self,
                  fname: str,
@@ -34,24 +61,24 @@ class DnaDataset:
             self.validate_annotation(annotation, self.chromsizes)
         self._annotation: Optional[Dict[str, GeneCoord]] = annotation
 
-    @property
-    def binsizes_selected(self) -> bool:
-        if self._binsizes_selected is None:
-            with h5py.File(self.fname, 'r') as f:
-                binsizes_selected = f.attrs['binsizes_selected']
-                if binsizes_selected in (True, False):
-                    self._binsizes_selected = binsizes_selected
-                else:
-                    raise Exception
-        return self._binsizes_selected
+    # @property
+    # def binsizes_selected(self) -> bool:
+    #     if self._binsizes_selected is None:
+    #         with h5py.File(self.fname, 'r') as f:
+    #             binsizes_selected = f.attrs['binsizes_selected']
+    #             if binsizes_selected in (True, False):
+    #                 self._binsizes_selected = binsizes_selected
+    #             else:
+    #                 raise Exception
+    #     return self._binsizes_selected
 
-    @binsizes_selected.setter
-    def binsizes_selected(self, indicator: bool) -> None:
-        if indicator not in (True, False):
-            raise ValueError
-        with h5py.File(self.fname, 'a') as f:
-            f.attrs['binsizes_selected'] = indicator
-        self._binsizes_selected = indicator
+    # @binsizes_selected.setter
+    # def binsizes_selected(self, indicator: bool) -> None:
+    #     if indicator not in (True, False):
+    #         raise ValueError
+    #     with h5py.File(self.fname, 'a') as f:
+    #         f.attrs['binsizes_selected'] = indicator
+    #     self._binsizes_selected = indicator
 
     @property
     def chromsizes(self) -> Dict[str, int]:
@@ -272,6 +299,9 @@ class Rdc:
     bg_groupname: str = "background"
     pixels_groupname: str = "pixels"
 
+    scaling_fitted = StatusProperty()
+    peaks_estimated = StatusProperty()
+
     def __init__(self,
                  fname: str,
                  chromsizes: Optional[Dict[str, int]] = None) -> None:
@@ -288,44 +318,6 @@ class Rdc:
         self._annotation: Optional[Dict[str, GeneCoord]] = None
         self._scaling_fitted: Optional[bool] = None
         self._peaks_estimated: Optional[bool] = None
-
-    @property
-    def scaling_fitted(self) -> bool:
-        if self._scaling_fitted is None:
-            with h5py.File(self.fname, 'r') as f:
-                scaling_fitted = f.attrs['scaling_fitted']
-                if scaling_fitted in (True, False):
-                    self._scaling_fitted = scaling_fitted
-                else:
-                    raise Exception
-        return self._scaling_fitted
-
-    @scaling_fitted.setter
-    def scaling_fitted(self, indicator: bool) -> None:
-        if indicator not in (True, False):
-            raise ValueError
-        with h5py.File(self.fname, 'a') as f:
-            f.attrs['scaling_fitted'] = indicator
-        self._scaling_fitted = indicator
-
-    @property
-    def peaks_estimated(self) -> bool:
-        if self._peaks_estimated is None:
-            with h5py.File(self.fname, 'r') as f:
-                peaks_estimated = f.attrs['peaks_estimated']
-                if peaks_estimated in (True, False):
-                    self._peaks_estimated = peaks_estimated
-                else:
-                    raise Exception
-        return self._peaks_estimated
-
-    @peaks_estimated.setter
-    def peaks_estimated(self, indicator: bool) -> None:
-        if indicator not in (True, False):
-            raise ValueError
-        with h5py.File(self.fname, 'a') as f:
-            f.attrs['peaks_estimated'] = indicator
-        self._peaks_estimated = indicator
 
     @property
     def chromsizes(self) -> Dict[str, int]:
@@ -433,8 +425,35 @@ class Rdc:
                 rna_attrs = rna_record.rna_attrs
                 self._write_pixels_single(f, rna_name, pixels_df, rna_coord, rna_attrs)
 
-    def write_array(self, name: str, arrays: Dict[str, np.ndarray]) -> None:
-        raise NotImplementedError
+    def _write_array_single(self, f: h5py.File, rna_name: str, arr_name: str, array: pd.DataFrame) -> None:
+        if self.pixels_groupname not in f:
+            raise Exception
+        pixels_group = f[self.pixels_groupname]
+        if rna_name not in pixels_group:
+            raise Exception
+        rna_group = pixels_group[rna_name]
+
+        for chrom_name, chrom_df in array.groupby('chrom'):
+            if chrom_name not in rna_group:
+                raise Exception
+            chrom_group = rna_group[chrom_name]
+            if arr_name not in self.pixels_cols:
+                raise Exception
+            arr_dtype = self.pixels_cols[arr_name]
+            arr_data = chrom_df[arr_name].values.astype(arr_dtype)
+            if arr_name in chrom_group:
+                chrom_group[arr_name][...] = arr_data
+            else:
+                chrom_group.create_dataset(arr_name, data=arr_data)
+
+    def write_array_single(self, rna_name: str, arr_name: str, array: pd.DataFrame) -> None:
+        with h5py.File(self.fname, 'a') as f:
+            self._write_array_single(f, rna_name, arr_name, array)
+
+    def write_array(self, arr_name: str, arrays: Dict[str, pd.DataFrame]) -> None:
+        with h5py.File(self.fname, 'a') as f:
+            for rna_name, array in arrays.items():
+                self._write_array_single(f, rna_name, arr_name, array)
 
     def write_attribute(self, attrname: str, data: Dict[str, Any]) -> None:
         with h5py.File(self.fname, 'a') as f:
@@ -468,6 +487,21 @@ class Rdc:
         scaling_splines = {rna_name: SplineResult(t=rna_spline_t[rna_name], c=rna_spline_c[rna_name], k=rna_spline_k[rna_name])
                            for rna_name in rna_spline_t}
         return scaling_splines
+
+    def read_scaling_single(self, rna_name: str) -> SplineResult:
+        if not self.scaling_fitted:
+            raise Exception
+        with h5py.File(self.fname, 'r') as f:
+            if self.pixels_groupname not in f:
+                raise Exception
+            pixels_group = f[self.pixels_groupname]
+            if rna_name not in pixels_group:
+                raise Exception
+            rna_group = pixels_group[rna_name]
+            spline_result = SplineResult(t=rna_group.attrs['scaling_spline_t'],
+                                         c=rna_group.attrs['scaling_spline_c'],
+                                         k=rna_group.attrs['scaling_spline_k'])
+        return spline_result
 
     def _read_pixels_single(self,
                             f: h5py.File,
