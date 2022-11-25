@@ -14,11 +14,11 @@ from .schemas import GeneCoord, RnaAttrs, RnaPixelRecord, SplineResult
 
 class StatusProperty:
 
-    def __set_name__(self, owner: Rdc, name: str) -> None:
+    def __set_name__(self, owner, name: str) -> None:
         self.private_name = '_' + name
         self.public_name = name
 
-    def __get__(self, obj: Rdc, objtype=None) -> bool:
+    def __get__(self, obj, objtype=None) -> bool:
         value = getattr(obj, self.private_name)
         if value is None:
             with h5py.File(obj.fname, 'r') as f:
@@ -29,7 +29,7 @@ class StatusProperty:
                     raise Exception
         return value
 
-    def __set__(self, obj: Rdc, value: bool) -> None:
+    def __set__(self, obj, value: bool) -> None:
         if value not in (True, False):
             raise ValueError
         with h5py.File(obj.fname, 'a') as f:
