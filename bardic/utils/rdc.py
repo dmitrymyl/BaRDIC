@@ -1,10 +1,12 @@
-from ..api.formats import DnaDataset, Rdc
-import pandas as pd
-from ..api.schemas import RnaAttrs, RnaPixelRecord
-from ..api.binops import make_genomic_track
-from typing import Dict, Any, Optional
 from functools import partial
+from typing import Any, Dict, Optional
+
+import pandas as pd
 from tqdm.contrib.concurrent import process_map
+
+from ..api.binops import make_genomic_track
+from ..api.formats import DnaDataset, Rdc
+from ..api.schemas import RnaAttrs, RnaPixelRecord
 
 
 def imputation_value(bg_track: pd.DataFrame, ifactor=0.01) -> float:

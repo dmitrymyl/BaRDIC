@@ -61,25 +61,6 @@ class DnaDataset:
             self.validate_annotation(annotation, self.chromsizes)
         self._annotation: Optional[Dict[str, GeneCoord]] = annotation
 
-    # @property
-    # def binsizes_selected(self) -> bool:
-    #     if self._binsizes_selected is None:
-    #         with h5py.File(self.fname, 'r') as f:
-    #             binsizes_selected = f.attrs['binsizes_selected']
-    #             if binsizes_selected in (True, False):
-    #                 self._binsizes_selected = binsizes_selected
-    #             else:
-    #                 raise Exception
-    #     return self._binsizes_selected
-
-    # @binsizes_selected.setter
-    # def binsizes_selected(self, indicator: bool) -> None:
-    #     if indicator not in (True, False):
-    #         raise ValueError
-    #     with h5py.File(self.fname, 'a') as f:
-    #         f.attrs['binsizes_selected'] = indicator
-    #     self._binsizes_selected = indicator
-
     @property
     def chromsizes(self) -> Dict[str, int]:
         if self._chromsizes is None:

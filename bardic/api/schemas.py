@@ -1,4 +1,4 @@
-from dataclasses import dataclass, astuple
+from dataclasses import astuple, dataclass
 from typing import Dict, Optional, Union
 
 import numpy as np

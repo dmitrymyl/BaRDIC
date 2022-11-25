@@ -5,7 +5,8 @@ import bioframe as bf
 import pandas as pd
 from tqdm.contrib.concurrent import process_map
 
-from ..api.binops import calculate_bins_coverage, make_cis_bins, make_trans_bins
+from ..api.binops import (calculate_bins_coverage, make_cis_bins,
+                          make_trans_bins)
 from ..api.formats import DnaDataset
 from ..api.optim import optimize_cost_function
 

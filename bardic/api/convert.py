@@ -1,7 +1,8 @@
 from typing import Dict
-from .schemas import GeneCoord
 
 import pandas as pd
+
+from .schemas import GeneCoord
 
 
 def annotation_to_dict(annotation_df: pd.DataFrame) -> Dict[str, GeneCoord]:

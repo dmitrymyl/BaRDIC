@@ -9,7 +9,7 @@ import scipy.stats as ss
 from scipy.stats._stats_mstats_common import LinregressResult
 from tqdm.contrib.concurrent import process_map
 
-from ..api.binops import make_rel_dist_vector, calculate_rel_dist_from_centers
+from ..api.binops import calculate_rel_dist_from_centers, make_rel_dist_vector
 from ..api.formats import Rdc
 from ..api.schemas import GeneCoord, SplineResult
 

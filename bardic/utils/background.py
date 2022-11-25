@@ -1,6 +1,7 @@
 from typing import List
 
 import pandas as pd
+
 from ..api.binops import (calculate_bins_coverage, make_interval_centers,
                           make_linear_bins)
 from ..api.formats import DnaDataset

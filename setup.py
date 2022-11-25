@@ -2,7 +2,7 @@ from setuptools import setup
 
 
 setup(name='bardic',
-      version='0.2.0',
+      version='0.3.0',
       description='A binomial RNA-DNA interaction caller.',
       url='http://github.com/dmitrymyl/BaRDIC',
       author='Dmitry Mylarshchikov',
@@ -16,6 +16,7 @@ setup(name='bardic',
                         'tqdm',
                         'matplotlib',
                         'seaborn',
-                        'statsmodels'],
+                        'statsmodels',
+                        'h5py'],
       python_requires='>=3.8',
       zip_safe=True)

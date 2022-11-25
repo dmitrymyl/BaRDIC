@@ -1,9 +1,10 @@
 from typing import Dict, Optional, Union, cast
+
 import bioframe as bf
 import numpy as np
 import pandas as pd
 
-from .schemas import RnaAttrs, GeneCoord
+from .schemas import GeneCoord, RnaAttrs
 
 
 def make_geom_bins(length: int, start_size: int, factor: Union[int, float]) -> np.ndarray:
