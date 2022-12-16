@@ -33,7 +33,7 @@ def _cook_pixels(rna_name, dna_contacts, rna_annot, rna_attrs, bg_track, chromdi
     return rna_name, RnaPixelRecord(**{'pixels': dna_track, 'gene_coord': rna_annot, 'rna_attrs': rna_attrs})
 
 
-def dnadataset_to_rdc(dna_dataset: DnaDataset, bg_track: pd.DataFrame, fname: str, ifactor: Optional[float] = None, max_workers=2) -> Rdc:
+def dnadataset_to_rdc(dna_dataset: DnaDataset, bg_track: pd.DataFrame, fname: str, ifactor: Optional[float] = 0.01, max_workers=2) -> Rdc:
     if ifactor is None:
         ivalue = None
     else:

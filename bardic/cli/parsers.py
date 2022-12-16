@@ -1,6 +1,13 @@
 import argparse
 
 
+def numeric(value):
+    transformed_val: float = float(value)
+    if transformed_val.is_integer():
+        transformed_val = int(transformed_val)
+    return transformed_val
+
+
 bardic_parser = argparse.ArgumentParser(prog='bardic',
                                         description='Binomial RNA-DNA interaction caller.')
 bardic_subparsers = bardic_parser.add_subparsers(title='Subcommands',
@@ -45,52 +52,52 @@ binsizes_input_group.add_argument('dnadataset',
                                   help='DNA parts dnah5 file.')
 
 binsizes_params_group = binsizes_parser.add_argument_group('Parameters')
-binsizes_params_group.add_argument('-min_contacts',
+binsizes_params_group.add_argument('-mcon', '--min_contacts',
                                    type=int,
                                    nargs='?',
                                    default=1000,
                                    help='Minimal number of contacts to consider an RNA. Any RNA with less contacts will be discarded from further processing.')
-binsizes_params_group.add_argument('-trans_min',
+binsizes_params_group.add_argument('-tmin', '--trans_min',
                                    type=int,
                                    nargs='?',
                                    default=10_000,
                                    help='Minimal trans bin size.')
-binsizes_params_group.add_argument('-trans_max',
+binsizes_params_group.add_argument('-tmax', '--trans_max',
                                    type=int,
                                    nargs='?',
                                    default=1_000_000,
                                    help='Maximal trans bin size.')
-binsizes_params_group.add_argument('-trans_step',
+binsizes_params_group.add_argument('-tstep', '--trans_step',
                                    type=int,
                                    nargs='?',
                                    default=1_000,
                                    help='Step for increasing trans bin size.')
-binsizes_params_group.add_argument('-cis_min',
+binsizes_params_group.add_argument('-cmin', '--cis_min',
                                    type=float,
                                    nargs='?',
                                    default=1.1,
                                    help='Minimal cis factor.')
-binsizes_params_group.add_argument('-cis_max',
+binsizes_params_group.add_argument('-cmax', '--cis_max',
                                    type=float,
                                    nargs='?',
                                    default=2.,
                                    help='Maximal cis factor.')
-binsizes_params_group.add_argument('-cis_step',
+binsizes_params_group.add_argument('-cstep', '--cis_step',
                                    type=float,
                                    nargs='?',
                                    default=0.01,
                                    help='Step for inreasing cis factor.')
-binsizes_params_group.add_argument('-cis_start',
+binsizes_params_group.add_argument('-cstart', '--cis_start',
                                    type=int,
                                    nargs='?',
                                    default=5000,
                                    help='Starting cis bin size.')
-binsizes_params_group.add_argument('-tolerance',
+binsizes_params_group.add_argument('-tol', '--tolerance',
                                    type=float,
                                    nargs='?',
                                    default=0.01,
                                    help='Maximal absolute difference between two consecutive cost function values to consider optimization converged.')
-binsizes_params_group.add_argument('-w',
+binsizes_params_group.add_argument('-w', '--window',
                                    type=float,
                                    nargs='?',
                                    default=1,
@@ -103,8 +110,180 @@ binsizes_output_group.add_argument('output',
                                    help='Output tsv table with extended bin size selection results.')
 
 binsizes_processing_group = binsizes_parser.add_argument_group('Processing')
-binsizes_processing_group.add_argument('-cores',
+binsizes_processing_group.add_argument('-c', '--cores',
                                        type=int,
                                        nargs='?',
                                        default=1,
                                        help='Maximal number of cores to use.')
+
+
+background_parser = bardic_subparsers.add_parser('background',
+                                                 help='Create a bedGraph background track from DNA parts of selected RNAs',
+                                                 description='Create a bedGraph background track from DNA parts of selected RNAs',
+                                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+background_input_group = background_parser.add_argument_group('Input')
+background_input_group.add_argument('dnadataset',
+                                    type=str,
+                                    nargs='?',
+                                    help='DNA parts dnah5 file.')
+background_input_group.add_argument('rnas',
+                                    type=str,
+                                    nargs='?',
+                                    help='A file with a list of RNAs with one RNA name per line.')
+
+background_params_group = background_parser.add_argument_group('Parameters')
+background_params_group.add_argument('-bs', '--binsize',
+                                     type=int,
+                                     nargs='?',
+                                     default=1000,
+                                     help='Bin size of the background track.')
+
+background_output_group = background_parser.add_argument_group('Output')
+background_output_group.add_argument('output',
+                                     type=str,
+                                     nargs='?',
+                                     help='Filename of a background track in a bedGraph format.')
+
+
+makerdc_parser = bardic_subparsers.add_parser('makerdc',
+                                              help='Create RDC file from dnah5 DNA parts and bedGraph background track.',
+                                              description='Create RDC file from dnah5 DNA parts and bedGraph background track.',
+                                              formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+makerdc_input_group = makerdc_parser.add_argument_group('Input')
+makerdc_input_group.add_argument('dnadataset',
+                                 type=str,
+                                 nargs='?',
+                                 help='dnah5 DNA parts file.')
+makerdc_input_group.add_argument('bg',
+                                 type=str,
+                                 nargs='?',
+                                 help='bedGraph background track.')
+
+makerdc_params_group = makerdc_parser.add_argument_group('Parameters')
+makerdc_params_group.add_argument('-i', '--ifactor',
+                                  type=float,
+                                  nargs='?',
+                                  default=0.01,
+                                  help='...')
+
+makerdc_output_group = makerdc_parser.add_argument_group('Output')
+makerdc_output_group.add_argument('output',
+                                  type=str,
+                                  nargs='?',
+                                  help='Output .rdc filename.')
+
+makerdc_processing_group = makerdc_parser.add_argument_group('Processing')
+makerdc_processing_group.add_argument('-c', '--cores',
+                                      type=int,
+                                      nargs='?',
+                                      default=1,
+                                      help='Maximal number of cores to use.')
+
+
+scaling_parser = bardic_subparsers.add_parser('scaling',
+                                              help='Estimate scaling by fitting splines and adjust background probabilities in RDC file.',
+                                              description='Estimate scaling by fitting splines and adjust background probabilities in RDC file.',
+                                              formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+scaling_input_group = scaling_parser.add_argument_group('Input')
+scaling_input_group.add_argument('rdc',
+                                 type=str,
+                                 nargs='?',
+                                 help='Input RDC file name.')
+
+scaling_params_group = scaling_parser.add_argument_group('Parameters')
+scaling_params_group.add_argument('-d', '--degree',
+                                  type=int,
+                                  nargs='?',
+                                  default=3,
+                                  help='Spline degree.')
+scaling_params_group.add_argument('-mt', '--max_threshold',
+                                  type=float,
+                                  nargs='?',
+                                  default=0.05,
+                                  help='Maximal binomial test p-value to consider a point as an outlier in a spline refinement procedure.')
+scaling_params_group.add_argument('-nr', '--no_refine',
+                                  action='store_true',
+                                  help='If included, do not apply a spline refinement procedure.')
+scaling_params_group.add_argument('-fv', '--fill_value',
+                                  type=numeric,
+                                  nargs='?',
+                                  default=1,
+                                  help='Fold-change fill ratio in case of 0/0.')
+
+scaling_processing_group = scaling_parser.add_argument_group('Processing')
+scaling_processing_group.add_argument('-c', '--cores',
+                                      type=int,
+                                      nargs='?',
+                                      default=1,
+                                      help='Maximal number of cores to use.')
+
+
+valid_score_fields = ("bg_count",
+                      "raw_bg_prob",
+                      "scaling_factor",
+                      "bg_prob",
+                      "signal_count",
+                      "signal_prob",
+                      "impute",
+                      "fc",
+                      "pvalue",
+                      "qvalue")
+
+
+def score_field(value):
+    try:
+        transformed_val = int(value)
+    except ValueError:
+        transformed_val = str(value)
+        if transformed_val not in valid_score_fields:
+            raise ValueError(f'Provided score field {value} is not one of valid RDC fields ({", ".join(valid_score_fields)})')
+    return transformed_val
+
+
+peaks_parser = bardic_subparsers.add_parser('peaks',
+                                            help='Estimate significance and fetch peaks at specified FDR level.',
+                                            description='Estimate significance and fetch peaks at specified FDR level. Significance is estimated only once and all p- and q-values are store in the RDC.',
+                                            formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+peaks_input_group = peaks_parser.add_argument_group('Input')
+peaks_input_group.add_argument('rdc',
+                               type=str,
+                               nargs='?',
+                               help='RDC filename.')
+
+peaks_params_group = peaks_parser.add_argument_group('Parameters')
+peaks_params_group.add_argument('-q', '--qval_threshold',
+                                type=float,
+                                nargs='?',
+                                default=0.05,
+                                help='BH q-value threshold to consider bin a peak.')
+
+peaks_output_group = peaks_parser.add_argument_group('Output')
+peaks_output_group.add_argument('output',
+                                type=str,
+                                nargs='?',
+                                help='Output peaks filename.')
+peaks_output_group.add_argument('-f', '--format',
+                                type=str,
+                                nargs='?',
+                                choices=['narrowPeak', 'bed'],
+                                default='narrowPeak',
+                                help='Output peaks file format.')
+peaks_output_group.add_argument('-s', '--score',
+                                type=score_field,
+                                nargs='?',
+                                default=0,
+                                help='If --format=bed, which value to fill the score field with. '
+                                     'If int, will fill every peak score with it; '
+                                     'if str, will take corresponding values from the column in RDC '
+                                     f'(choices: {", ".join(valid_score_fields)})')
+
+peaks_processing_group = peaks_parser.add_argument_group('Processing')
+peaks_processing_group.add_argument('-c', '--cores',
+                                    type=int,
+                                    nargs='?',
+                                    default=1,
+                                    help='Maximal number of cores to use.')
