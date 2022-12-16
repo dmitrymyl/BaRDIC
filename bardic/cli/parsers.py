@@ -1,4 +1,5 @@
 import argparse
+from .pipeline import bed2h5_cli, binsizes_cli, background_cli, makerdc_cli, scaling_cli, peaks_cli
 
 
 def numeric(value):
@@ -17,26 +18,24 @@ bardic_subparsers = bardic_parser.add_subparsers(title='Subcommands',
 
 bed2h5_parser = bardic_subparsers.add_parser('bed2h5',
                                              help='convert DNA parts to custom HDF5 format',
-                                             description='Convert DNA parts to custom HDF5 format.')
+                                             description='Convert DNA parts to custom HDF5 format.',
+                                             formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+bed2h5_parser.set_defaults(func=bed2h5_cli)
 
 bed2h5_input_group = bed2h5_parser.add_argument_group('Input')
 bed2h5_input_group.add_argument('dnaparts',
                                 type=str,
-                                nargs='?',
                                 help='BED6 file with coordinates of DNA parts. Names of corresponding RNAs are in the "name" column.')
 bed2h5_input_group.add_argument('annotation',
                                 type=str,
-                                nargs='?',
                                 help='RNA annotation in BED format.')
 bed2h5_input_group.add_argument('chromsizes',
                                 type=str,
-                                nargs='?',
                                 help='If filename, then it is a UCSC headerless chromsizes file; if genome abbreviation, then will fetch chromsizes from UCSC')
 
 bed2h5_output_group = bed2h5_parser.add_argument_group('Output')
 bed2h5_output_group.add_argument('output',
                                  type=str,
-                                 nargs='?',
                                  help='output file in dnah5 format')
 
 
@@ -44,17 +43,18 @@ binsizes_parser = bardic_subparsers.add_parser('binsizes',
                                                help='Select bin size for each RNA and save it into dnah5 file',
                                                description='Select bin size for each RNA and save it into dnah5 file',
                                                formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+binsizes_parser.set_defaults(func=binsizes_cli)
 
 binsizes_input_group = binsizes_parser.add_argument_group('Input')
-binsizes_input_group.add_argument('dnadataset',
+binsizes_input_group.add_argument('dna_dataset',
                                   type=str,
-                                  nargs='?',
                                   help='DNA parts dnah5 file.')
 
 binsizes_params_group = binsizes_parser.add_argument_group('Parameters')
 binsizes_params_group.add_argument('-mcon', '--min_contacts',
                                    type=int,
                                    nargs='?',
+                                   dest='n_contacts',
                                    default=1000,
                                    help='Minimal number of contacts to consider an RNA. Any RNA with less contacts will be discarded from further processing.')
 binsizes_params_group.add_argument('-tmin', '--trans_min',
@@ -100,19 +100,20 @@ binsizes_params_group.add_argument('-tol', '--tolerance',
 binsizes_params_group.add_argument('-w', '--window',
                                    type=float,
                                    nargs='?',
+                                   dest='w',
                                    default=1,
                                    help='Window size to average cost function values over.')
 
 binsizes_output_group = binsizes_parser.add_argument_group('Output')
 binsizes_output_group.add_argument('output',
                                    type=str,
-                                   nargs='?',
                                    help='Output tsv table with extended bin size selection results.')
 
 binsizes_processing_group = binsizes_parser.add_argument_group('Processing')
 binsizes_processing_group.add_argument('-c', '--cores',
                                        type=int,
                                        nargs='?',
+                                       dest='n_cores',
                                        default=1,
                                        help='Maximal number of cores to use.')
 
@@ -121,15 +122,14 @@ background_parser = bardic_subparsers.add_parser('background',
                                                  help='Create a bedGraph background track from DNA parts of selected RNAs',
                                                  description='Create a bedGraph background track from DNA parts of selected RNAs',
                                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+background_parser.set_defaults(func=background_cli)
 
 background_input_group = background_parser.add_argument_group('Input')
-background_input_group.add_argument('dnadataset',
+background_input_group.add_argument('dna_dataset',
                                     type=str,
-                                    nargs='?',
                                     help='DNA parts dnah5 file.')
 background_input_group.add_argument('rnas',
                                     type=str,
-                                    nargs='?',
                                     help='A file with a list of RNAs with one RNA name per line.')
 
 background_params_group = background_parser.add_argument_group('Parameters')
@@ -142,7 +142,6 @@ background_params_group.add_argument('-bs', '--binsize',
 background_output_group = background_parser.add_argument_group('Output')
 background_output_group.add_argument('output',
                                      type=str,
-                                     nargs='?',
                                      help='Filename of a background track in a bedGraph format.')
 
 
@@ -150,15 +149,14 @@ makerdc_parser = bardic_subparsers.add_parser('makerdc',
                                               help='Create RDC file from dnah5 DNA parts and bedGraph background track.',
                                               description='Create RDC file from dnah5 DNA parts and bedGraph background track.',
                                               formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+makerdc_parser.set_defaults(func=makerdc_cli)
 
 makerdc_input_group = makerdc_parser.add_argument_group('Input')
-makerdc_input_group.add_argument('dnadataset',
+makerdc_input_group.add_argument('dna_dataset',
                                  type=str,
-                                 nargs='?',
                                  help='dnah5 DNA parts file.')
 makerdc_input_group.add_argument('bg',
                                  type=str,
-                                 nargs='?',
                                  help='bedGraph background track.')
 
 makerdc_params_group = makerdc_parser.add_argument_group('Parameters')
@@ -171,7 +169,6 @@ makerdc_params_group.add_argument('-i', '--ifactor',
 makerdc_output_group = makerdc_parser.add_argument_group('Output')
 makerdc_output_group.add_argument('output',
                                   type=str,
-                                  nargs='?',
                                   help='Output .rdc filename.')
 
 makerdc_processing_group = makerdc_parser.add_argument_group('Processing')
@@ -186,11 +183,11 @@ scaling_parser = bardic_subparsers.add_parser('scaling',
                                               help='Estimate scaling by fitting splines and adjust background probabilities in RDC file.',
                                               description='Estimate scaling by fitting splines and adjust background probabilities in RDC file.',
                                               formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+scaling_parser.set_defaults(func=scaling_cli)
 
 scaling_input_group = scaling_parser.add_argument_group('Input')
 scaling_input_group.add_argument('rdc',
                                  type=str,
-                                 nargs='?',
                                  help='Input RDC file name.')
 
 scaling_params_group = scaling_parser.add_argument_group('Parameters')
@@ -247,11 +244,11 @@ peaks_parser = bardic_subparsers.add_parser('peaks',
                                             help='Estimate significance and fetch peaks at specified FDR level.',
                                             description='Estimate significance and fetch peaks at specified FDR level. Significance is estimated only once and all p- and q-values are store in the RDC.',
                                             formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+peaks_parser.set_defaults(func=peaks_cli)
 
 peaks_input_group = peaks_parser.add_argument_group('Input')
 peaks_input_group.add_argument('rdc',
                                type=str,
-                               nargs='?',
                                help='RDC filename.')
 
 peaks_params_group = peaks_parser.add_argument_group('Parameters')
@@ -264,7 +261,6 @@ peaks_params_group.add_argument('-q', '--qval_threshold',
 peaks_output_group = peaks_parser.add_argument_group('Output')
 peaks_output_group.add_argument('output',
                                 type=str,
-                                nargs='?',
                                 help='Output peaks filename.')
 peaks_output_group.add_argument('-f', '--format',
                                 type=str,

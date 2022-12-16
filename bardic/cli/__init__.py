@@ -1,1 +1,1 @@
-from parsers import bardic_parser
+from .parsers import bardic_parser
