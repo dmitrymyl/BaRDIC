@@ -17,18 +17,18 @@ def calculate_pvals_single(rna_name: str, total_contacts: int, rdc_data: Rdc) ->
     return rna_name, pixels[['chrom', 'pvalue']]
 
 
-def calculate_pvals(rdc_data: Rdc, max_workers: int = 1) -> Dict[str, pd.DataFrame]:
+def calculate_pvals(rdc_data: Rdc, n_cores: int = 1) -> Dict[str, pd.DataFrame]:
     cis_contacts_num = rdc_data.read_attribute('cis_contacts')
     trans_contacts_num = rdc_data.read_attribute('trans_contacts')
     rna_names = list(cis_contacts_num.keys())
     total_contacts_gen = (cis_contacts_num[rna_name] + trans_contacts_num[rna_name] for rna_name in rna_names)
     func = partial(calculate_pvals_single, rdc_data=rdc_data)
-    results = dict(process_map(func, rna_names, total_contacts_gen, max_workers=max_workers))
+    results = dict(process_map(func, rna_names, total_contacts_gen, max_workers=n_cores))
     return results
 
 
-def estimate_significance(rdc_data: Rdc, max_workers: int = 1) -> None:
-    total_stats = calculate_pvals(rdc_data, max_workers)
+def estimate_significance(rdc_data: Rdc, n_cores: int = 1) -> None:
+    total_stats = calculate_pvals(rdc_data, n_cores)
 
     rna_dfs_handler = list()
     for rna_name, rna_stats in total_stats.items():
@@ -57,13 +57,13 @@ def fetch_peaks_single(rna_name: str, rdc_data: Rdc, threshold: float = 0.05) ->
     return peaks
 
 
-def fetch_peaks(rdc_data: Rdc, threshold: float = 0.05, max_workers: int = 1) -> pd.DataFrame:
+def fetch_peaks(rdc_data: Rdc, threshold: float = 0.05, n_cores: int = 1) -> pd.DataFrame:
     if not rdc_data.peaks_estimated:
         raise Exception
     annotation = rdc_data.annotation
     rna_names = list(annotation.keys())
     func = partial(fetch_peaks_single, rdc_data=rdc_data, threshold=threshold)
-    results = process_map(func, rna_names, max_workers=max_workers)
+    results = process_map(func, rna_names, max_workers=n_cores)
     return pd.concat(results, ignore_index=True)
 
 

@@ -1,0 +1,105 @@
+from typing import Union
+
+from ..api.convert import annotation_to_dict
+from ..api.formats import DnaDataset, Rdc
+from ..api.io import get_chromsizes, load_annotation, load_bedgraph
+from ..utils import (bed2h5, calculate_bin_sizes, calculate_scaling_splines,
+                     dnadataset_to_rdc, estimate_significance, fetch_peaks,
+                     format_peaks, make_background_track, pipeline)
+
+
+def bed2h5_cli(annotation: str, chromsizes: str, dnaparts: str, output: str):
+    annotation_dict = annotation_to_dict(load_annotation(annotation))
+    chromsizes_dict = get_chromsizes(chromsizes)
+    _ = bed2h5(bed_fname=dnaparts,
+               h5_fname=output,
+               chromsizes=chromsizes_dict,
+               annotation=annotation_dict)
+
+
+def binsizes_cli(dna_dataset: str,
+                 output: str,
+                 n_contacts: int = 1000,
+                 trans_min: int = 10000,
+                 trans_max: int = 1000000,
+                 trans_step: int = 1000,
+                 cis_min: float = 1.1,
+                 cis_max: float = 2.,
+                 cis_step: float = 0.01,
+                 cis_start: int = 5000,
+                 tolerance: float = 0.01,
+                 w: int = 1,
+                 n_cores: int = 1):
+    dna_dataset_obj = DnaDataset(dna_dataset)
+    selection_results = calculate_bin_sizes(dna_dataset=dna_dataset_obj,
+                                            n_contacts=n_contacts,
+                                            trans_min=trans_min,
+                                            trans_max=trans_max,
+                                            trans_step=trans_step,
+                                            cis_min=cis_min,
+                                            cis_max=cis_max,
+                                            cis_step=cis_step,
+                                            cis_start=cis_start,
+                                            tolerance=tolerance,
+                                            w=w,
+                                            n_cores=n_cores)
+    selection_results.to_csv(output, header=True, index=False, sep='\t')
+
+
+def background_cli(dna_dataset: str,
+                   rnas: str,
+                   binsize: int,
+                   output: str):
+    dna_dataset_obj = DnaDataset(dna_dataset)
+    with open(rnas, 'r') as infile:
+        rnas_list = [line.strip() for line in infile]
+    bg_track = make_background_track(dna_dataset=dna_dataset_obj,
+                                     rnas=rnas_list,
+                                     binsize=binsize)
+    bg_track.to_csv(output, header=False, index=False, sep='\t')
+
+
+def makerdc_cli(dna_dataset: str,
+                bg: str,
+                ifactor: float,
+                output: str,
+                n_cores: int = 1):
+    dna_dataset_obj = DnaDataset(dna_dataset)
+    bg_track = load_bedgraph(bg)
+    _ = dnadataset_to_rdc(dna_dataset=dna_dataset_obj,
+                          bg_track=bg_track,
+                          fname=output,
+                          ifactor=ifactor,
+                          n_cores=n_cores)
+
+
+def scaling_cli(rdc: str,
+                degree: int,
+                max_threshold: float,
+                no_refine: bool = False,
+                fill_value: Union[int, float] = 1,
+                n_cores: int = 1):
+    rdc_data = Rdc(rdc)
+    calculate_scaling_splines(rdc_data=rdc_data,
+                              degree=degree,
+                              no_refine=no_refine,
+                              max_threshold=max_threshold,
+                              fill_value=fill_value,
+                              n_cores=n_cores)
+
+
+def peaks_cli(rdc: str,
+              qval_threshold: float,
+              output: str,
+              format: str,
+              score: Union[str, int],
+              n_cores: int):
+    rdc_data = Rdc(rdc)
+    estimate_significance(rdc_data, n_cores)
+    peaks = fetch_peaks(rdc_data, qval_threshold, n_cores)
+    peaks = format_peaks(peaks, format, score)
+    peaks.to_csv(output, header=False, index=False, sep='\t')
+
+
+def pipeline_cli():
+    pipeline(...)

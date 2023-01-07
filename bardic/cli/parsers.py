@@ -1,5 +1,5 @@
 import argparse
-from .pipeline import bed2h5_cli, binsizes_cli, background_cli, makerdc_cli, scaling_cli, peaks_cli
+from .commands import bed2h5_cli, binsizes_cli, background_cli, makerdc_cli, scaling_cli, peaks_cli
 
 
 def numeric(value):
@@ -176,6 +176,7 @@ makerdc_processing_group.add_argument('-c', '--cores',
                                       type=int,
                                       nargs='?',
                                       default=1,
+                                      dest='n_cores',
                                       help='Maximal number of cores to use.')
 
 
@@ -215,6 +216,7 @@ scaling_processing_group.add_argument('-c', '--cores',
                                       type=int,
                                       nargs='?',
                                       default=1,
+                                      dest='n_cores',
                                       help='Maximal number of cores to use.')
 
 
@@ -282,4 +284,5 @@ peaks_processing_group.add_argument('-c', '--cores',
                                     type=int,
                                     nargs='?',
                                     default=1,
+                                    dest='n_cores',
                                     help='Maximal number of cores to use.')

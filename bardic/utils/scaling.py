@@ -39,12 +39,12 @@ def get_cis_coverage_single(rdc_data: Rdc, rna_name: str, gene_coord: GeneCoord)
     return cis_coverage
 
 
-def get_cis_coverage(rdc_data: Rdc, max_workers: int = 2) -> pd.DataFrame:
+def get_cis_coverage(rdc_data: Rdc, n_cores: int = 1) -> pd.DataFrame:
     annotation = rdc_data.annotation
     rna_names = list(annotation.keys())
     gene_coords = (annotation[rna_name] for rna_name in rna_names)
     func = partial(get_cis_coverage_single, rdc_data)
-    result = process_map(func, rna_names, gene_coords, max_workers=max_workers)
+    result = process_map(func, rna_names, gene_coords, max_workers=n_cores)
     return pd.concat(result, ignore_index=True)
 
 
@@ -70,7 +70,7 @@ def get_chrom_scaling_single(chrom_name: str,
 def get_chrom_scaling(cis_coverage: pd.DataFrame,
                       only_fittable=False,
                       degree: int = 3,
-                      max_workers: int = 2) -> Tuple[Dict[str, LinregressResult], Dict[str, SplineResult]]:
+                      n_cores: int = 1) -> Tuple[Dict[str, LinregressResult], Dict[str, SplineResult]]:
     if only_fittable:
         chrom_counts = cis_coverage['chrom'].value_counts()
         fittable_chroms = chrom_counts[chrom_counts > degree].index
@@ -78,7 +78,7 @@ def get_chrom_scaling(cis_coverage: pd.DataFrame,
 
     func = partial(get_chrom_scaling_single, degree=degree)
 
-    results = process_map(func, *zip(*cis_coverage.groupby('chrom')), max_workers=max_workers)
+    results = process_map(func, *zip(*cis_coverage.groupby('chrom')), max_workers=n_cores)
     linreg_results = {item[0]: item[1][0] for item in results}
     spline_results = {item[0]: item[1][1] for item in results}
     return linreg_results, spline_results
@@ -126,9 +126,9 @@ def get_rna_scaling(cis_coverage: pd.DataFrame,
                     degree: int = 3,
                     no_refine: bool = False,
                     max_threshold: float = 0.05,
-                    max_workers: int = 2) -> pd.DataFrame:
+                    n_cores: int = 1) -> pd.DataFrame:
     func = partial(get_rna_scaling_single, degree=degree, no_refine=no_refine, max_threshold=max_threshold)
-    results = process_map(func, *zip(*cis_coverage.groupby('rna')), max_workers=max_workers)
+    results = process_map(func, *zip(*cis_coverage.groupby('rna')), max_workers=n_cores)
     return dict(results)
 
 
@@ -195,7 +195,7 @@ def rescale_rdc_data_single(rna_name: str,
 
 def rescale_rdc_data(rdc_data: Rdc,
                      fill_value: Union[int, float] = 1,
-                     max_workers: int = 1):
+                     n_cores: int = 1):
     cis_contacts_nums = rdc_data.read_attribute('cis_contacts')
     trans_contacts_nums = rdc_data.read_attribute('trans_contacts')
     annotation = rdc_data.annotation
@@ -207,7 +207,7 @@ def rescale_rdc_data(rdc_data: Rdc,
     gene_coords = (annotation[rna_name] for rna_name in rna_names)
     n_cis_contacts_gen = (cis_contacts_nums[rna_name] for rna_name in rna_names)
     n_trans_contacts_gen = (trans_contacts_nums[rna_name] for rna_name in rna_names)
-    results = dict(process_map(func, rna_names, gene_coords, n_cis_contacts_gen, n_trans_contacts_gen, max_workers=max_workers))
+    results = dict(process_map(func, rna_names, gene_coords, n_cis_contacts_gen, n_trans_contacts_gen, max_workers=n_cores))
     changed_cols = ['raw_bg_prob', 'bg_prob', 'signal_prob', 'scaling_factor', 'fc']
     for col in changed_cols:
         rdc_data.write_array(col, results)
@@ -218,19 +218,19 @@ def calculate_scaling_splines(rdc_data: Rdc,
                               no_refine: bool = False,
                               max_threshold: float = 0.05,
                               fill_value: Union[int, float] = 1,
-                              max_workers: int = 2) -> None:
+                              n_cores: int = 1) -> None:
     cis_coverage = get_cis_coverage(rdc_data)
     _, chrom_spline_scaling = get_chrom_scaling(cis_coverage,
                                                 only_fittable=True,
                                                 degree=degree,
-                                                max_workers=max_workers)
+                                                n_cores=n_cores)
     rna_spline_scaling = get_rna_scaling(cis_coverage,
                                          degree=degree,
                                          no_refine=no_refine,
                                          max_threshold=max_threshold,
-                                         max_workers=max_workers)
+                                         n_cores=n_cores)
     annotation = rdc_data.annotation
     refined_rna_splines = refine_rna_splines(rna_spline_scaling, chrom_spline_scaling, annotation)
     rdc_data.write_scaling_splines(refined_rna_splines)
     rdc_data.scaling_fitted = True
-    rescale_rdc_data(rdc_data, fill_value, max_workers)
+    rescale_rdc_data(rdc_data, fill_value, n_cores)
