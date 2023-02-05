@@ -1,6 +1,6 @@
 from typing import Dict, List
-import pandas as pd
 
+import pandas as pd
 
 from ..api.convert import annotation_to_dict, chromsizes_to_dict
 from . import (bed2h5, calculate_bin_sizes, calculate_scaling_splines,
@@ -8,23 +8,23 @@ from . import (bed2h5, calculate_bin_sizes, calculate_scaling_splines,
                format_peaks, make_background_track)
 
 
-def pipeline(dna_parts_fname: str,
-             dna_dataset_fname: str,
-             rdc_fname: str,
-             chromsizes: pd.Series,
-             annotation: pd.DataFrame,
-             binsize_params: Dict,
-             selection_results_fname: str,
-             bg_fname: str,
-             rna_list: List,
-             bg_binsize: int,
-             rdc_params: Dict,
-             scaling_params: Dict,
-             peaks_threshold: float,
-             peaks_format_params: Dict,
-             peaks_output: str,
-             n_cores: int = 1):
-    chromdict = chromsizes_to_dict(chromsizes)
+def run_pipeline(dna_parts_fname: str,
+                 dna_dataset_fname: str,
+                 rdc_fname: str,
+                 chromsizes: Dict[str, int],
+                 annotation: pd.DataFrame,
+                 selection_results_fname: str,
+                 bg_fname: str,
+                 rna_list: List,
+                 bg_binsize: int,
+                 peaks_threshold: float,
+                 peaks_output: str,
+                 binsize_params: Dict = {},
+                 rdc_params: Dict = {},
+                 scaling_params: Dict = {},
+                 peaks_format_params: Dict = {},
+                 n_cores: int = 1):
+    chromdict = chromsizes
     annotation_dict = annotation_to_dict(annotation)
 
     dna_dataset = bed2h5(dna_parts_fname, dna_dataset_fname, chromdict, annotation_dict)
@@ -41,5 +41,5 @@ def pipeline(dna_parts_fname: str,
 
     estimate_significance(rdc_data, n_cores)
     peaks = fetch_peaks(rdc_data, peaks_threshold, n_cores)
-    formatted_peaks = format_peaks(peaks, peaks_format_params)
+    formatted_peaks = format_peaks(peaks, **peaks_format_params)
     formatted_peaks.to_csv(peaks_output, sep='\t', header=True, index=False)

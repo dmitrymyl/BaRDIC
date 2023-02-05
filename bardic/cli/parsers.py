@@ -1,8 +1,11 @@
 import argparse
-from .commands import bed2h5_cli, binsizes_cli, background_cli, makerdc_cli, scaling_cli, peaks_cli
+from typing import Union
+
+from .commands import (background_cli, bed2h5_cli, binsizes_cli, makerdc_cli,
+                       peaks_cli, scaling_cli, run_pipeline_cli)
 
 
-def numeric(value):
+def numeric(value: str) -> Union[int, float]:
     transformed_val: float = float(value)
     if transformed_val.is_integer():
         transformed_val = int(transformed_val)
@@ -164,7 +167,7 @@ makerdc_params_group.add_argument('-i', '--ifactor',
                                   type=float,
                                   nargs='?',
                                   default=0.01,
-                                  help='...')
+                                  help='Imputation factor: if background coverage of a bin is 0, this value is a multiplier of an average background coverage to impute zero background coverage.')
 
 makerdc_output_group = makerdc_parser.add_argument_group('Output')
 makerdc_output_group.add_argument('output',
@@ -286,3 +289,146 @@ peaks_processing_group.add_argument('-c', '--cores',
                                     default=1,
                                     dest='n_cores',
                                     help='Maximal number of cores to use.')
+
+
+run_pipeline_parser = bardic_subparsers.add_parser('run',
+                                                   help='Run pipeline with a single command.',
+                                                   description='Run pipeline with a single command.',
+                                                   formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+run_pipeline_parser.set_defaults(func=run_pipeline_cli)
+
+run_input_group = run_pipeline_parser.add_argument_group('Input')
+run_input_group.add_argument('dnaparts',
+                             type=str,
+                             help='BED6 file with coordinates of DNA parts. Names of corresponding RNAs are in the "name" column.')
+run_input_group.add_argument('annotation',
+                             type=str,
+                             help='RNA annotation in BED format.')
+run_input_group.add_argument('chromsizes',
+                             type=str,
+                             help='If filename, then it is a UCSC headerless chromsizes file; if genome abbreviation, then will fetch chromsizes from UCSC')
+run_input_group.add_argument('bg_rnas',
+                             type=str,
+                             help='A file with a list of RNAs with one RNA name per line.')
+
+run_output_group = run_pipeline_parser.add_argument_group('Output')
+run_output_group.add_argument('outdir',
+                                type=str,
+                                help='Output directory name.')
+run_output_group.add_argument('-f', '--format',
+                              type=str,
+                              nargs='?',
+                              choices=['narrowPeak', 'bed'],
+                              default='narrowPeak',
+                              help='Output peaks file format.')
+run_output_group.add_argument('-s', '--score',
+                              type=score_field,
+                              nargs='?',
+                              default=0,
+                              help='If --format=bed, which value to fill the score field with. '
+                                   'If int, will fill every peak score with it; '
+                                   'if str, will take corresponding values from the column in RDC '
+                                   f'(choices: {", ".join(valid_score_fields)})')
+
+run_binsizes_group = run_pipeline_parser.add_argument_group('Binsize selection parameters')
+run_binsizes_group.add_argument('-mcon', '--min_contacts',
+                                   type=int,
+                                   nargs='?',
+                                   dest='n_contacts',
+                                   default=1000,
+                                   help='Minimal number of contacts to consider an RNA. Any RNA with less contacts will be discarded from further processing.')
+run_binsizes_group.add_argument('-tmin', '--trans_min',
+                                   type=int,
+                                   nargs='?',
+                                   default=10_000,
+                                   help='Minimal trans bin size.')
+run_binsizes_group.add_argument('-tmax', '--trans_max',
+                                   type=int,
+                                   nargs='?',
+                                   default=1_000_000,
+                                   help='Maximal trans bin size.')
+run_binsizes_group.add_argument('-tstep', '--trans_step',
+                                   type=int,
+                                   nargs='?',
+                                   default=1_000,
+                                   help='Step for increasing trans bin size.')
+run_binsizes_group.add_argument('-cmin', '--cis_min',
+                                   type=float,
+                                   nargs='?',
+                                   default=1.1,
+                                   help='Minimal cis factor.')
+run_binsizes_group.add_argument('-cmax', '--cis_max',
+                                   type=float,
+                                   nargs='?',
+                                   default=2.,
+                                   help='Maximal cis factor.')
+run_binsizes_group.add_argument('-cstep', '--cis_step',
+                                   type=float,
+                                   nargs='?',
+                                   default=0.01,
+                                   help='Step for inreasing cis factor.')
+run_binsizes_group.add_argument('-cstart', '--cis_start',
+                                   type=int,
+                                   nargs='?',
+                                   default=5000,
+                                   help='Starting cis bin size.')
+run_binsizes_group.add_argument('-tol', '--tolerance',
+                                   type=float,
+                                   nargs='?',
+                                   default=0.01,
+                                   help='Maximal absolute difference between two consecutive cost function values to consider optimization converged.')
+run_binsizes_group.add_argument('-w', '--window',
+                                   type=float,
+                                   nargs='?',
+                                   dest='w',
+                                   default=1,
+                                   help='Window size to average cost function values over.')
+
+run_background_group = run_pipeline_parser.add_argument_group('Background parameters')
+run_background_group.add_argument('-bs', '--binsize',
+                                  type=int,
+                                  nargs='?',
+                                  default=1000,
+                                  help='Bin size of the background track.')
+
+run_makerdc_group = run_pipeline_parser.add_argument_group('RDC creation parameters')
+run_makerdc_group.add_argument('-i', '--ifactor',
+                               type=float,
+                               nargs='?',
+                               default=0.01,
+                               help='Imputation factor: if background coverage of a bin is 0, this value is a multiplier of an average background coverage to impute zero background coverage.')
+
+run_scaling_group = run_pipeline_parser.add_argument_group('Scaling parameters')
+run_scaling_group.add_argument('-d', '--degree',
+                               type=int,
+                               nargs='?',
+                               default=3,
+                               help='Spline degree.')
+run_scaling_group.add_argument('-mt', '--max_threshold',
+                               type=float,
+                               nargs='?',
+                               default=0.05,
+                               help='Maximal binomial test p-value to consider a point as an outlier in a spline refinement procedure.')
+run_scaling_group.add_argument('-nr', '--no_refine',
+                               action='store_true',
+                               help='If included, do not apply a spline refinement procedure.')
+run_scaling_group.add_argument('-fv', '--fill_value',
+                               type=numeric,
+                               nargs='?',
+                               default=1,
+                               help='Fold-change fill ratio in case of 0/0.')
+
+run_peaks_group = run_pipeline_parser.add_argument_group('Peaks parameters')
+run_peaks_group.add_argument('-q', '--qval_threshold',
+                             type=float,
+                             nargs='?',
+                             default=0.05,
+                             help='BH q-value threshold to consider bin a peak.')
+
+run_processing_group = run_pipeline_parser.add_argument_group('Processing')
+run_processing_group.add_argument('-c', '--cores',
+                                  type=int,
+                                  nargs='?',
+                                  default=1,
+                                  dest='n_cores',
+                                  help='Maximal number of cores to use.')

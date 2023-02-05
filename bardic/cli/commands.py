@@ -1,11 +1,12 @@
 from typing import Union
+import os
 
 from ..api.convert import annotation_to_dict
 from ..api.formats import DnaDataset, Rdc
 from ..api.io import get_chromsizes, load_annotation, load_bedgraph
 from ..utils import (bed2h5, calculate_bin_sizes, calculate_scaling_splines,
                      dnadataset_to_rdc, estimate_significance, fetch_peaks,
-                     format_peaks, make_background_track, pipeline)
+                     format_peaks, make_background_track, run_pipeline)
 
 
 def bed2h5_cli(annotation: str, chromsizes: str, dnaparts: str, output: str):
@@ -101,5 +102,71 @@ def peaks_cli(rdc: str,
     peaks.to_csv(output, header=False, index=False, sep='\t')
 
 
-def pipeline_cli():
-    pipeline(...)
+def run_pipeline_cli(dnaparts: str,
+                     annotation: str,
+                     chromsizes: str,
+                     bg_rnas: str,
+                     outdir: str,
+                     n_contacts: int = 1000,
+                     trans_min: int = 10000,
+                     trans_max: int = 1000000,
+                     trans_step: int = 1000,
+                     cis_min: float = 1.1,
+                     cis_max: float = 2.,
+                     cis_step: float = 0.01,
+                     cis_start: int = 5000,
+                     tolerance: float = 0.01,
+                     w: int = 1,
+                     n_cores: int = 1,
+                     binsize: int = 5000,
+                     ifactor: float = 0.01,
+                     degree: int = 3,
+                     max_threshold: float = 0.95,
+                     no_refine: bool = False,
+                     fill_value: Union[int, float] = 1,
+                     qval_threshold: float = 0.05,
+                     format: str = "narrowPeak",
+                     score: Union[str, int] = 0):
+    
+    if not os.path.exists(outdir):
+        os.mkdir(outdir)
+    dna_dataset_fname = os.path.join(outdir, "DnaDataset.dnah5")
+    rdc_fname = os.path.join(outdir, "contacts.rdc")
+    selection_results_fname = os.path.join(outdir, "selection.tsv")
+    bg_fname = os.path.join(outdir, 'background.bedGraph')
+    peaks_output = os.path.join(outdir, "peaks." + format)
+
+    annotation_df = load_annotation(annotation)
+    chromsizes_dict = get_chromsizes(chromsizes)
+
+    with open(bg_rnas, 'r') as infile:
+        rna_list = [line.strip() for line in infile]
+    
+    run_pipeline(dna_parts_fname=dnaparts,
+             dna_dataset_fname=dna_dataset_fname,
+             rdc_fname=rdc_fname,
+             chromsizes=chromsizes_dict,
+             annotation=annotation_df,
+             binsize_params=dict(n_contacts=n_contacts,
+                                 trans_min=trans_min,
+                                 trans_max=trans_max,
+                                 trans_step=trans_step,
+                                 cis_min=cis_min,
+                                 cis_max=cis_max,
+                                 cis_step=cis_step,
+                                 cis_start=cis_start,
+                                 tolerance=tolerance,
+                                 w=w),
+             selection_results_fname=selection_results_fname,
+             bg_fname=bg_fname,
+             rna_list=rna_list,
+             bg_binsize=binsize,
+             rdc_params=dict(ifactor=ifactor),
+             scaling_params=dict(degree=degree,
+                                 max_threshold=max_threshold,
+                                 no_refine=no_refine,
+                                 fill_value=fill_value),
+             peaks_threshold=qval_threshold,
+             peaks_format_params=dict(format=format, score=score),
+             peaks_output=peaks_output,
+             n_cores=n_cores)

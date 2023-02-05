@@ -34,14 +34,14 @@ def fetch_chromsizes(genome: str) -> pd.Series:
     return bf.fetch_chromsizes(genome)
 
 
-def get_chromsizes(chromsizes: str) -> Dict:
+def get_chromsizes(chromsizes: str) -> Dict[str, int]:
     if Path(chromsizes).exists():
-        chromsizes = chromsizes_to_dict(load_chromsizes(chromsizes))
+        chromsizes_dict = chromsizes_to_dict(load_chromsizes(chromsizes))
     else:
         try:
-            chromsizes = chromsizes_to_dict(fetch_chromsizes(chromsizes))
+            chromsizes_dict = chromsizes_to_dict(fetch_chromsizes(chromsizes))
         except HTTPError:
             raise ValueError(f'{chromsizes} file does not exist and is not a valid UCSC genome name.')
         except URLError:
             raise Exception(f"Couldn't fetch chromsizes for {chromsizes}, check internet connection.")
-    return chromsizes
+    return chromsizes_dict

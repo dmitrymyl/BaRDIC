@@ -1,7 +1,7 @@
 from .cli import bardic_parser
 
 
-def run():
+def main():
     args = bardic_parser.parse_args()
     func = args.func
     del args.func
@@ -9,4 +9,4 @@ def run():
     func(**kwargs)
 
 if __name__ == "__main__":
-    run()
+    main()
