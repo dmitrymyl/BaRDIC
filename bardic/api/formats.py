@@ -33,7 +33,7 @@ class StatusProperty:
         if value not in (True, False):
             raise ValueError
         with h5py.File(obj.fname, 'a') as f:
-            f.attrs['scaling_fitted'] = value
+            f.attrs[self.public_name] = value
         setattr(obj, self.private_name, value)
 
 
@@ -41,7 +41,7 @@ class DnaDataset:
     chrom_groupname: str = "chrom_sizes"
     dna_groupname: str = "dna_parts"
 
-    binsizes_selected = StatusProperty()
+    are_binsizes_selected = StatusProperty()
 
     def __init__(self,
                  fname: str,
@@ -50,7 +50,8 @@ class DnaDataset:
         self.fname: Path = Path(fname)
         if not self.fname.exists():
             with h5py.File(self.fname, 'w') as f:
-                f.attrs["binsizes_selected"] = False
+                pass
+            self.are_binsizes_selected = False
 
         self._binsizes_selected = None
 
@@ -280,8 +281,8 @@ class Rdc:
     bg_groupname: str = "background"
     pixels_groupname: str = "pixels"
 
-    scaling_fitted = StatusProperty()
-    peaks_estimated = StatusProperty()
+    is_scaling_fitted = StatusProperty()
+    are_peaks_estimated = StatusProperty()
 
     def __init__(self,
                  fname: str,
@@ -289,8 +290,9 @@ class Rdc:
         self.fname: Path = Path(fname)
         if not self.fname.exists():
             with h5py.File(self.fname, 'w') as f:
-                f.attrs['scaling_fitted'] = False
-                f.attrs['peaks_estimated'] = False
+                pass
+            self.is_scaling_fitted = False
+            self.are_peaks_estimated = False
 
         self._chromsizes: Optional[Dict[str, int]] = chromsizes
         if chromsizes is not None:
@@ -470,7 +472,7 @@ class Rdc:
         return scaling_splines
 
     def read_scaling_single(self, rna_name: str) -> SplineResult:
-        if not self.scaling_fitted:
+        if not self.is_scaling_fitted:
             raise Exception
         with h5py.File(self.fname, 'r') as f:
             if self.pixels_groupname not in f:

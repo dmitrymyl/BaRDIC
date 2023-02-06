@@ -34,6 +34,8 @@ def _cook_pixels(rna_name, dna_contacts, rna_annot, rna_attrs, bg_track, chromdi
 
 
 def dnadataset_to_rdc(dna_dataset: DnaDataset, bg_track: pd.DataFrame, fname: str, ifactor: Optional[float] = 0.01, n_cores: int = 1) -> Rdc:
+    if not dna_dataset.are_binsizes_selected:
+        raise Exception
     if ifactor is None:
         ivalue = None
     else:

@@ -156,7 +156,7 @@ def calculate_bin_sizes(dna_dataset: DnaDataset,
     for attr_name in attr_names:
         attr_vals = {item['gene_name']: item[attr_name] for item in bin_selection_results}
         dna_dataset.write_attribute(attr_name, attr_vals)
-    dna_dataset.binsizes_selected = True
+    dna_dataset.are_binsizes_selected = True
 
     selection_df = pd.DataFrame.from_records(bin_selection_results).dropna(how='all')
     return selection_df

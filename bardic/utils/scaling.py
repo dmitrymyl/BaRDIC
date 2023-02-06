@@ -199,7 +199,7 @@ def rescale_rdc_data(rdc_data: Rdc,
     cis_contacts_nums = rdc_data.read_attribute('cis_contacts')
     trans_contacts_nums = rdc_data.read_attribute('trans_contacts')
     annotation = rdc_data.annotation
-    if not rdc_data.scaling_fitted:
+    if not rdc_data.is_scaling_fitted:
         raise Exception
 
     func = partial(rescale_rdc_data_single, rdc_data=rdc_data, fill_value=fill_value)
@@ -232,5 +232,5 @@ def calculate_scaling_splines(rdc_data: Rdc,
     annotation = rdc_data.annotation
     refined_rna_splines = refine_rna_splines(rna_spline_scaling, chrom_spline_scaling, annotation)
     rdc_data.write_scaling_splines(refined_rna_splines)
-    rdc_data.scaling_fitted = True
+    rdc_data.is_scaling_fitted = True
     rescale_rdc_data(rdc_data, fill_value, n_cores)

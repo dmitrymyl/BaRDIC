@@ -47,7 +47,7 @@ def estimate_significance(rdc_data: Rdc, n_cores: int = 1) -> None:
 
     rdc_data.write_array('pvalue', total_stats)
     rdc_data.write_array('qvalue', total_stats)
-    rdc_data.peaks_estimated = True
+    rdc_data.are_peaks_estimated = True
 
 
 def fetch_peaks_single(rna_name: str, rdc_data: Rdc, threshold: float = 0.05) -> pd.DataFrame:
@@ -58,7 +58,7 @@ def fetch_peaks_single(rna_name: str, rdc_data: Rdc, threshold: float = 0.05) ->
 
 
 def fetch_peaks(rdc_data: Rdc, threshold: float = 0.05, n_cores: int = 1) -> pd.DataFrame:
-    if not rdc_data.peaks_estimated:
+    if not rdc_data.are_peaks_estimated:
         raise Exception
     annotation = rdc_data.annotation
     rna_names = list(annotation.keys())
