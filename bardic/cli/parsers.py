@@ -313,8 +313,8 @@ run_input_group.add_argument('bg_rnas',
 
 run_output_group = run_pipeline_parser.add_argument_group('Output')
 run_output_group.add_argument('outdir',
-                                type=str,
-                                help='Output directory name.')
+                              type=str,
+                              help='Output directory name.')
 run_output_group.add_argument('-f', '--format',
                               type=str,
                               nargs='?',
@@ -332,57 +332,57 @@ run_output_group.add_argument('-s', '--score',
 
 run_binsizes_group = run_pipeline_parser.add_argument_group('Binsize selection parameters')
 run_binsizes_group.add_argument('-mcon', '--min_contacts',
-                                   type=int,
-                                   nargs='?',
-                                   dest='n_contacts',
-                                   default=1000,
-                                   help='Minimal number of contacts to consider an RNA. Any RNA with less contacts will be discarded from further processing.')
+                                type=int,
+                                nargs='?',
+                                dest='n_contacts',
+                                default=1000,
+                                help='Minimal number of contacts to consider an RNA. Any RNA with less contacts will be discarded from further processing.')
 run_binsizes_group.add_argument('-tmin', '--trans_min',
-                                   type=int,
-                                   nargs='?',
-                                   default=10_000,
-                                   help='Minimal trans bin size.')
+                                type=int,
+                                nargs='?',
+                                default=10_000,
+                                help='Minimal trans bin size.')
 run_binsizes_group.add_argument('-tmax', '--trans_max',
-                                   type=int,
-                                   nargs='?',
-                                   default=1_000_000,
-                                   help='Maximal trans bin size.')
+                                type=int,
+                                nargs='?',
+                                default=1_000_000,
+                                help='Maximal trans bin size.')
 run_binsizes_group.add_argument('-tstep', '--trans_step',
-                                   type=int,
-                                   nargs='?',
-                                   default=1_000,
-                                   help='Step for increasing trans bin size.')
+                                type=int,
+                                nargs='?',
+                                default=1_000,
+                                help='Step for increasing trans bin size.')
 run_binsizes_group.add_argument('-cmin', '--cis_min',
-                                   type=float,
-                                   nargs='?',
-                                   default=1.1,
-                                   help='Minimal cis factor.')
+                                type=float,
+                                nargs='?',
+                                default=1.1,
+                                help='Minimal cis factor.')
 run_binsizes_group.add_argument('-cmax', '--cis_max',
-                                   type=float,
-                                   nargs='?',
-                                   default=2.,
-                                   help='Maximal cis factor.')
+                                type=float,
+                                nargs='?',
+                                default=2.,
+                                help='Maximal cis factor.')
 run_binsizes_group.add_argument('-cstep', '--cis_step',
-                                   type=float,
-                                   nargs='?',
-                                   default=0.01,
-                                   help='Step for inreasing cis factor.')
+                                type=float,
+                                nargs='?',
+                                default=0.01,
+                                help='Step for inreasing cis factor.')
 run_binsizes_group.add_argument('-cstart', '--cis_start',
-                                   type=int,
-                                   nargs='?',
-                                   default=5000,
-                                   help='Starting cis bin size.')
+                                type=int,
+                                nargs='?',
+                                default=5000,
+                                help='Starting cis bin size.')
 run_binsizes_group.add_argument('-tol', '--tolerance',
-                                   type=float,
-                                   nargs='?',
-                                   default=0.01,
-                                   help='Maximal absolute difference between two consecutive cost function values to consider optimization converged.')
+                                type=float,
+                                nargs='?',
+                                default=0.01,
+                                help='Maximal absolute difference between two consecutive cost function values to consider optimization converged.')
 run_binsizes_group.add_argument('-w', '--window',
-                                   type=float,
-                                   nargs='?',
-                                   dest='w',
-                                   default=1,
-                                   help='Window size to average cost function values over.')
+                                type=float,
+                                nargs='?',
+                                dest='w',
+                                default=1,
+                                help='Window size to average cost function values over.')
 
 run_background_group = run_pipeline_parser.add_argument_group('Background parameters')
 run_background_group.add_argument('-bs', '--binsize',

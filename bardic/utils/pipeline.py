@@ -2,7 +2,7 @@ from typing import Dict, List
 
 import pandas as pd
 
-from ..api.convert import annotation_to_dict, chromsizes_to_dict
+from ..api.convert import annotation_to_dict
 from . import (bed2h5, calculate_bin_sizes, calculate_scaling_splines,
                dnadataset_to_rdc, estimate_significance, fetch_peaks,
                format_peaks, make_background_track)
@@ -42,4 +42,4 @@ def run_pipeline(dna_parts_fname: str,
     estimate_significance(rdc_data, n_cores)
     peaks = fetch_peaks(rdc_data, peaks_threshold, n_cores)
     formatted_peaks = format_peaks(peaks, **peaks_format_params)
-    formatted_peaks.to_csv(peaks_output, sep='\t', header=True, index=False)
+    formatted_peaks.to_csv(peaks_output, sep='\t', header=False, index=False)

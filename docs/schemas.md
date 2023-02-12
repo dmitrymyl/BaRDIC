@@ -71,7 +71,7 @@
 |Field|Type|Description|
 |-|:-:|-|
 |is_scaling_fitted|bool|Whether scaling is estimated and RNAs background levels of interactions are rescaled|
-|are_peaks_estimated|bool|Whether p-values for peaks are estimated|
+|are_peaks_estimated|bool|Whether p-values and q-values for peaks are estimated|
 
 
 `rnaN` attributes:

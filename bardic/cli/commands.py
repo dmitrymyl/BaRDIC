@@ -96,7 +96,8 @@ def peaks_cli(rdc: str,
               score: Union[str, int],
               n_cores: int):
     rdc_data = Rdc(rdc)
-    estimate_significance(rdc_data, n_cores)
+    if not rdc_data.are_peaks_estimated:
+        estimate_significance(rdc_data, n_cores)
     peaks = fetch_peaks(rdc_data, qval_threshold, n_cores)
     peaks = format_peaks(peaks, format, score)
     peaks.to_csv(output, header=False, index=False, sep='\t')
@@ -127,7 +128,7 @@ def run_pipeline_cli(dnaparts: str,
                      qval_threshold: float = 0.05,
                      format: str = "narrowPeak",
                      score: Union[str, int] = 0):
-    
+
     if not os.path.exists(outdir):
         os.mkdir(outdir)
     dna_dataset_fname = os.path.join(outdir, "DnaDataset.dnah5")
@@ -141,32 +142,32 @@ def run_pipeline_cli(dnaparts: str,
 
     with open(bg_rnas, 'r') as infile:
         rna_list = [line.strip() for line in infile]
-    
+
     run_pipeline(dna_parts_fname=dnaparts,
-             dna_dataset_fname=dna_dataset_fname,
-             rdc_fname=rdc_fname,
-             chromsizes=chromsizes_dict,
-             annotation=annotation_df,
-             binsize_params=dict(n_contacts=n_contacts,
-                                 trans_min=trans_min,
-                                 trans_max=trans_max,
-                                 trans_step=trans_step,
-                                 cis_min=cis_min,
-                                 cis_max=cis_max,
-                                 cis_step=cis_step,
-                                 cis_start=cis_start,
-                                 tolerance=tolerance,
-                                 w=w),
-             selection_results_fname=selection_results_fname,
-             bg_fname=bg_fname,
-             rna_list=rna_list,
-             bg_binsize=binsize,
-             rdc_params=dict(ifactor=ifactor),
-             scaling_params=dict(degree=degree,
-                                 max_threshold=max_threshold,
-                                 no_refine=no_refine,
-                                 fill_value=fill_value),
-             peaks_threshold=qval_threshold,
-             peaks_format_params=dict(format=format, score=score),
-             peaks_output=peaks_output,
-             n_cores=n_cores)
+                 dna_dataset_fname=dna_dataset_fname,
+                 rdc_fname=rdc_fname,
+                 chromsizes=chromsizes_dict,
+                 annotation=annotation_df,
+                 binsize_params=dict(n_contacts=n_contacts,
+                                     trans_min=trans_min,
+                                     trans_max=trans_max,
+                                     trans_step=trans_step,
+                                     cis_min=cis_min,
+                                     cis_max=cis_max,
+                                     cis_step=cis_step,
+                                     cis_start=cis_start,
+                                     tolerance=tolerance,
+                                     w=w),
+                 selection_results_fname=selection_results_fname,
+                 bg_fname=bg_fname,
+                 rna_list=rna_list,
+                 bg_binsize=binsize,
+                 rdc_params=dict(ifactor=ifactor),
+                 scaling_params=dict(degree=degree,
+                                     max_threshold=max_threshold,
+                                     no_refine=no_refine,
+                                     fill_value=fill_value),
+                 peaks_threshold=qval_threshold,
+                 peaks_format_params=dict(format=format, score=score),
+                 peaks_output=peaks_output,
+                 n_cores=n_cores)
