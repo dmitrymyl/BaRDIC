@@ -20,5 +20,5 @@ Output file formats are more or less stable.
 ## Soon
 
 1. Python API reference.
-2. Nice docs.
+2. Better docs.
 3. Groundbreaking changes in API and CLI (sorry).

@@ -44,10 +44,13 @@ The command `bardic run` will run the whole pipeline, while other commands launc
 `bardic run` requires all input files as specified above. Additionally, algorithm can be tuned with a diverse set of parameters:
 
 ```{bash}
-usage: bardic run [-h] [-f [{narrowPeak,bed}]] [-s [SCORE]] [-mcon [N_CONTACTS]] [-tmin [TRANS_MIN]] [-tmax [TRANS_MAX]] [-tstep [TRANS_STEP]]
-                  [-cmin [CIS_MIN]] [-cmax [CIS_MAX]] [-cstep [CIS_STEP]] [-cstart [CIS_START]] [-tol [TOLERANCE]] [-w [W]] [-bs [BINSIZE]] [-i [IFACTOR]]
-                  [-d [DEGREE]] [-mt [MAX_THRESHOLD]] [-nr] [-fv [FILL_VALUE]] [-q [QVAL_THRESHOLD]] [-c [N_CORES]]
-                  dnaparts annotation chromsizes bg_rnas outdir
+usage: bardic run [-h] [-f [{narrowPeak,bed}]] [-s [score_field]]
+                  [-mcon [int]] [-tmin [int]] [-tmax [int]] [-tstep [int]]
+                  [-cmin [float]] [-cmax [float]] [-cstep [float]]
+                  [-cstart [int]] [-tol [float]] [-w [float]] [-bs [int]]
+                  [-bt [{rnas,custom}]] [-i [float]] [-d [int]] [-mt [float]]
+                  [-nr] [-fv [numeric]] [-q [float]] [-c [int]]
+                  dnaparts annotation chromsizes bgdata outdir
 
 Run pipeline with a single command.
 
@@ -55,66 +58,91 @@ optional arguments:
   -h, --help            show this help message and exit
 
 Input:
-  dnaparts              BED6 file with coordinates of DNA parts. Names of corresponding RNAs are in the "name" column.
+  dnaparts              BED6 file with coordinates of DNA parts. Names of
+                        corresponding RNAs are in the "name" column.
   annotation            RNA annotation in BED format.
-  chromsizes            If filename, then it is a UCSC headerless chromsizes file; if genome abbreviation, then will fetch chromsizes from UCSC
-  bg_rnas               A file with a list of RNAs with one RNA name per line.
+  chromsizes            If filename, then it is a UCSC headerless chromsizes
+                        file; if genome abbreviation, then will fetch
+                        chromsizes from UCSC
+  bgdata                A file with data on background. If --bgtype="rnas",
+                        this is a file with a list of RNAs with one RNA name
+                        per line. If --bgtype="custom", this is a bedGraph
+                        file with background signal in equally-sized bins.
 
 Output:
   outdir                Output directory name.
   -f [{narrowPeak,bed}], --format [{narrowPeak,bed}]
                         Output peaks file format. (default: narrowPeak)
-  -s [SCORE], --score [SCORE]
-                        If --format=bed, which value to fill the score field with. If int, will fill every peak score with it; if str, will take
-                        corresponding values from the column in RDC (choices: bg_count, raw_bg_prob, scaling_factor, bg_prob, signal_count, signal_prob,
-                        impute, fc, pvalue, qvalue) (default: 0)
+  -s [score_field], --score [score_field]
+                        If --format=bed, which value to fill the score field
+                        with. If int, will fill every peak score with it; if
+                        str, will take corresponding values from the column in
+                        RDC (choices: bg_count, raw_bg_prob, scaling_factor,
+                        bg_prob, signal_count, signal_prob, impute, fc,
+                        pvalue, qvalue) (default: 0)
 
 Binsize selection parameters:
-  -mcon [N_CONTACTS], --min_contacts [N_CONTACTS]
-                        Minimal number of contacts to consider an RNA. Any RNA with less contacts will be discarded from further processing. (default:
-                        1000)
-  -tmin [TRANS_MIN], --trans_min [TRANS_MIN]
+  -mcon [int], --min_contacts [int]
+                        Minimal number of contacts to consider an RNA. Any RNA
+                        with less contacts will be discarded from further
+                        processing. (default: 1000)
+  -tmin [int], --trans_min [int]
                         Minimal trans bin size. (default: 10000)
-  -tmax [TRANS_MAX], --trans_max [TRANS_MAX]
+  -tmax [int], --trans_max [int]
                         Maximal trans bin size. (default: 1000000)
-  -tstep [TRANS_STEP], --trans_step [TRANS_STEP]
+  -tstep [int], --trans_step [int]
                         Step for increasing trans bin size. (default: 1000)
-  -cmin [CIS_MIN], --cis_min [CIS_MIN]
+  -cmin [float], --cis_min [float]
                         Minimal cis factor. (default: 1.1)
-  -cmax [CIS_MAX], --cis_max [CIS_MAX]
+  -cmax [float], --cis_max [float]
                         Maximal cis factor. (default: 2.0)
-  -cstep [CIS_STEP], --cis_step [CIS_STEP]
+  -cstep [float], --cis_step [float]
                         Step for inreasing cis factor. (default: 0.01)
-  -cstart [CIS_START], --cis_start [CIS_START]
+  -cstart [int], --cis_start [int]
                         Starting cis bin size. (default: 5000)
-  -tol [TOLERANCE], --tolerance [TOLERANCE]
-                        Maximal absolute difference between two consecutive cost function values to consider optimization converged. (default: 0.01)
-  -w [W], --window [W]  Window size to average cost function values over. (default: 1)
+  -tol [float], --tolerance [float]
+                        Maximal absolute difference between two consecutive
+                        cost function values to consider optimization
+                        converged. (default: 0.01)
+  -w [float], --window [float]
+                        Window size to average cost function values over.
+                        (default: 1)
 
 Background parameters:
-  -bs [BINSIZE], --binsize [BINSIZE]
+  -bs [int], --binsize [int]
                         Bin size of the background track. (default: 1000)
+  -bt [{rnas,custom}], --bgtype [{rnas,custom}]
+                        Type of backround. If "rnas", then will calculate
+                        background from trans-contacts of RNAs supplied as
+                        "bgdata". If "custom", will use bedgraph track
+                        provided as "bgdata". (default: rnas)
 
 RDC creation parameters:
-  -i [IFACTOR], --ifactor [IFACTOR]
-                        Imputation factor: if background coverage of a bin is 0, this value is a multiplier of an average background coverage to impute
-                        zero background coverage. (default: 0.01)
+  -i [float], --ifactor [float]
+                        Imputation factor: if background coverage of a bin is
+                        0, this value is a multiplier of an average background
+                        coverage to impute zero background coverage. (default:
+                        0.01)
 
 Scaling parameters:
-  -d [DEGREE], --degree [DEGREE]
+  -d [int], --degree [int]
                         Spline degree. (default: 3)
-  -mt [MAX_THRESHOLD], --max_threshold [MAX_THRESHOLD]
-                        Maximal binomial test p-value to consider a point as an outlier in a spline refinement procedure. (default: 0.05)
-  -nr, --no_refine      If included, do not apply a spline refinement procedure. (default: False)
-  -fv [FILL_VALUE], --fill_value [FILL_VALUE]
+  -mt [float], --max_threshold [float]
+                        Maximal binomial test p-value to consider a point as
+                        an outlier in a spline refinement procedure. (default:
+                        0.05)
+  -nr, --no_refine      If included, do not apply a spline refinement
+                        procedure. (default: False)
+  -fv [numeric], --fill_value [numeric]
                         Fold-change fill ratio in case of 0/0. (default: 1)
 
 Peaks parameters:
-  -q [QVAL_THRESHOLD], --qval_threshold [QVAL_THRESHOLD]
-                        BH q-value threshold to consider bin a peak. (default: 0.05)
+  -q [float], --qval_threshold [float]
+                        BH q-value threshold to consider bin a peak. (default:
+                        0.05)
 
 Processing:
-  -c [N_CORES], --cores [N_CORES]
+  -c [int], --cores [int]
                         Maximal number of cores to use. (default: 1)
 ```
 

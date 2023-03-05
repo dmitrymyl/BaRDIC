@@ -106,7 +106,7 @@ def peaks_cli(rdc: str,
 def run_pipeline_cli(dnaparts: str,
                      annotation: str,
                      chromsizes: str,
-                     bg_rnas: str,
+                     bgdata: str,
                      outdir: str,
                      n_contacts: int = 1000,
                      trans_min: int = 10000,
@@ -127,21 +127,31 @@ def run_pipeline_cli(dnaparts: str,
                      fill_value: Union[int, float] = 1,
                      qval_threshold: float = 0.05,
                      format: str = "narrowPeak",
-                     score: Union[str, int] = 0):
+                     score: Union[str, int] = 0,
+                     bg_type: str = "rnas"):
 
     if not os.path.exists(outdir):
         os.mkdir(outdir)
     dna_dataset_fname = os.path.join(outdir, "DnaDataset.dnah5")
     rdc_fname = os.path.join(outdir, "contacts.rdc")
     selection_results_fname = os.path.join(outdir, "selection.tsv")
-    bg_fname = os.path.join(outdir, 'background.bedGraph')
+
+    if bg_type == "rnas":
+        bg_fname = os.path.join(outdir, 'background.bedGraph')
+        with open(bgdata, 'r') as infile:
+            rna_list = [line.strip() for line in infile]
+        makebg = True
+    elif bg_type == "custom":
+        bg_fname = bgdata
+        rna_list = None
+        makebg = False
+    else:
+        raise ValueError
+
     peaks_output = os.path.join(outdir, "peaks." + format)
 
     annotation_df = load_annotation(annotation)
     chromsizes_dict = get_chromsizes(chromsizes)
-
-    with open(bg_rnas, 'r') as infile:
-        rna_list = [line.strip() for line in infile]
 
     run_pipeline(dna_parts_fname=dnaparts,
                  dna_dataset_fname=dna_dataset_fname,
@@ -170,4 +180,5 @@ def run_pipeline_cli(dnaparts: str,
                  peaks_threshold=qval_threshold,
                  peaks_format_params=dict(format=format, score=score),
                  peaks_output=peaks_output,
-                 n_cores=n_cores)
+                 n_cores=n_cores,
+                 makebg=makebg)

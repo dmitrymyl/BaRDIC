@@ -37,11 +37,37 @@ class StatusProperty:
         setattr(obj, self.private_name, value)
 
 
+class VersionProperty:
+
+    def __set_name__(self, owner, name: str) -> None:
+        self.private_name = '_' + name
+        self.public_name = name
+
+    def __get__(self, obj, objtype=None) -> bool:
+        value = getattr(obj, self.private_name)
+        if value is None:
+            with h5py.File(obj.fname, 'r') as f:
+                value = f.attrs[self.public_name]
+                if value in ("1", ):
+                    setattr(obj, self.private_name, value)
+                else:
+                    raise Exception
+        return value
+
+    def __set__(self, obj, value: bool) -> None:
+        if value not in ("1", ):
+            raise ValueError
+        with h5py.File(obj.fname, 'a') as f:
+            f.attrs[self.public_name] = value
+        setattr(obj, self.private_name, value)
+
+
 class DnaDataset:
     chrom_groupname: str = "chrom_sizes"
     dna_groupname: str = "dna_parts"
 
     are_binsizes_selected = StatusProperty()
+    version = VersionProperty()
 
     def __init__(self,
                  fname: str,
@@ -49,11 +75,15 @@ class DnaDataset:
                  annotation: Optional[Dict[str, GeneCoord]] = None) -> None:
         self.fname: Path = Path(fname)
         if not self.fname.exists():
-            with h5py.File(self.fname, 'w') as f:
+            with h5py.File(self.fname, 'w'):
                 pass
             self.are_binsizes_selected = False
+            self.version = "1"
 
-        self._binsizes_selected = None
+        self._are_binsizes_selected: Optional[bool] = None
+        self._version: Optional[str] = None
+        if self.version != "1":
+            raise ValueError
 
         self._chromsizes: Optional[Dict[str, int]] = chromsizes
         if chromsizes is not None:
@@ -283,24 +313,29 @@ class Rdc:
 
     is_scaling_fitted = StatusProperty()
     are_peaks_estimated = StatusProperty()
+    version = VersionProperty()
 
     def __init__(self,
                  fname: str,
                  chromsizes: Optional[Dict[str, int]] = None) -> None:
         self.fname: Path = Path(fname)
         if not self.fname.exists():
-            with h5py.File(self.fname, 'w') as f:
+            with h5py.File(self.fname, 'w'):
                 pass
             self.is_scaling_fitted = False
             self.are_peaks_estimated = False
+            self.version = "1"
 
         self._chromsizes: Optional[Dict[str, int]] = chromsizes
         if chromsizes is not None:
             self.write_chromsizes()
 
         self._annotation: Optional[Dict[str, GeneCoord]] = None
-        self._scaling_fitted: Optional[bool] = None
-        self._peaks_estimated: Optional[bool] = None
+        self._is_scaling_fitted: Optional[bool] = None
+        self._are_peaks_estimated: Optional[bool] = None
+        self._version: Optional[str] = None
+        if self.version != "1":
+            raise Exception
 
     @property
     def chromsizes(self) -> Dict[str, int]:
