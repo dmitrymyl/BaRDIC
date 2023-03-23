@@ -11,15 +11,15 @@ from ..api.formats import Rdc
 
 
 def calculate_pvals_single(rna_name: str, total_contacts: int, rdc_data: Rdc) -> Tuple[str, pd.DataFrame]:
-    pixels = rdc_data.read_pixels_single(rna_name, value_fields=['signal_count', 'bg_prob'])
+    pixels = rdc_data.read_pixels(rna_name, value_fields=['signal_count', 'bg_prob'])
     pvals = pixels.apply(lambda row: np.nan if row['signal_count'] == 0 else ss.binomtest(k=row['signal_count'], n=total_contacts, p=row['bg_prob'], alternative='greater').pvalue, axis=1)
     pixels['pvalue'] = pvals
     return rna_name, pixels[['chrom', 'pvalue']]
 
 
 def calculate_pvals(rdc_data: Rdc, n_cores: int = 1) -> Dict[str, pd.DataFrame]:
-    cis_contacts_num = rdc_data.read_attribute('cis_contacts')
-    trans_contacts_num = rdc_data.read_attribute('trans_contacts')
+    cis_contacts_num = rdc_data.read_rna_attribute_batch('cis_contacts')
+    trans_contacts_num = rdc_data.read_rna_attribute_batch('trans_contacts')
     rna_names = list(cis_contacts_num.keys())
     total_contacts_gen = (cis_contacts_num[rna_name] + trans_contacts_num[rna_name] for rna_name in rna_names)
     func = partial(calculate_pvals_single, rdc_data=rdc_data)
@@ -45,13 +45,13 @@ def estimate_significance(rdc_data: Rdc, n_cores: int = 1) -> None:
         rna_stats = total_stats[rna_name]
         rna_stats.loc[~rna_stats['pvalue'].isna(), 'qvalue'] = rna_df['qvalue'].values
 
-    rdc_data.write_array('pvalue', total_stats)
-    rdc_data.write_array('qvalue', total_stats)
+    rdc_data.write_pixels_column_batch('pvalue', total_stats)
+    rdc_data.write_pixels_column_batch('qvalue', total_stats)
     rdc_data.are_peaks_estimated = True
 
 
 def fetch_peaks_single(rna_name: str, rdc_data: Rdc, threshold: float = 0.05) -> pd.DataFrame:
-    pixels = rdc_data.read_pixels_single(rna_name)
+    pixels = rdc_data.read_pixels(rna_name)
     peaks = pixels.query('qvalue < @threshold').reset_index(drop=True)
     peaks['rna_name'] = rna_name
     return peaks

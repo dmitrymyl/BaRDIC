@@ -24,7 +24,7 @@ def calculate_bin_size_single(gene_name: str,
                               cis_start: int = 5000,
                               tolerance: float = 0.01,
                               w: int = 1) -> Dict:
-    dna_df = dna_dataset.read_dna_parts_single(gene_name)
+    dna_df = dna_dataset.read_dna_parts(gene_name)
     chromsizes = dna_dataset.chromsizes
     annotation = dna_dataset.annotation
     gene_annot = annotation.get(gene_name)
@@ -126,7 +126,7 @@ def calculate_bin_sizes(dna_dataset: DnaDataset,
     rna_contact_amount = dna_dataset.get_num_contacts()
     rna_eligibility = {rna_name: rna_num_contacts >= n_contacts
                        for rna_name, rna_num_contacts in rna_contact_amount.items()}
-    dna_dataset.write_attribute('eligible', rna_eligibility)
+    dna_dataset.write_rna_attribute_batch('eligible', rna_eligibility)
     selected_rnas = [rna_name
                      for rna_name, eligible in rna_eligibility.items()
                      if eligible]
@@ -155,7 +155,7 @@ def calculate_bin_sizes(dna_dataset: DnaDataset,
                   'cis_start']
     for attr_name in attr_names:
         attr_vals = {item['gene_name']: item[attr_name] for item in bin_selection_results}
-        dna_dataset.write_attribute(attr_name, attr_vals)
+        dna_dataset.write_rna_attribute_batch(attr_name, attr_vals)
     dna_dataset.are_binsizes_selected = True
 
     selection_df = pd.DataFrame.from_records(bin_selection_results).dropna(how='all')

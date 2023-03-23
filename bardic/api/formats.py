@@ -87,7 +87,7 @@ class DnaDataset:
 
         self._chromsizes: Optional[Dict[str, int]] = chromsizes
         if chromsizes is not None:
-            self.write_chromsizes()
+            self._write_chromsizes()
         if annotation is not None:
             self.validate_annotation(annotation, self.chromsizes)
         self._annotation: Optional[Dict[str, GeneCoord]] = annotation
@@ -96,7 +96,7 @@ class DnaDataset:
     def chromsizes(self) -> Dict[str, int]:
         if self._chromsizes is None:
             try:
-                self._chromsizes = self.read_chromsizes()
+                self._chromsizes = self._read_chromsizes()
             except Exception:
                 raise Exception
         return self._chromsizes
@@ -104,7 +104,7 @@ class DnaDataset:
     @chromsizes.setter
     def chromsizes(self, chromsizes_dict: Dict[str, int]) -> None:
         self._chromsizes = chromsizes_dict
-        self.write_chromsizes()
+        self._write_chromsizes()
 
     @property
     def annotation(self) -> Dict[str, GeneCoord]:
@@ -153,18 +153,7 @@ class DnaDataset:
                 raise Exception
         return True
 
-    def write_chromsizes(self) -> None:
-        chromsizes_dict = self.chromsizes
-        with h5py.File(self.fname, 'a') as f:
-            names = np.array(list(chromsizes_dict.keys()), dtype='O')
-            sizes = np.array(list(chromsizes_dict.values()), dtype='int64')
-            if self.chrom_groupname in f:
-                del f[self.chrom_groupname]
-            chromsizes_group = f.create_group(self.chrom_groupname)
-            chromsizes_group.create_dataset('chrom', data=names)
-            chromsizes_group.create_dataset('size', data=sizes)
-
-    def read_chromsizes(self) -> Dict[str, int]:
+    def _read_chromsizes(self) -> Dict[str, int]:
         if not self.fname.exists():
             raise Exception
 
@@ -181,10 +170,40 @@ class DnaDataset:
 
         return dict(zip(names, sizes))
 
-    def _write_dna_parts_single(self,
-                                f: h5py.File,
-                                rna_name: str,
-                                dna_parts: pd.DataFrame) -> None:
+    def _write_chromsizes(self) -> None:
+        chromsizes_dict = self.chromsizes
+        with h5py.File(self.fname, 'a') as f:
+            names = np.array(list(chromsizes_dict.keys()), dtype='O')
+            sizes = np.array(list(chromsizes_dict.values()), dtype='int64')
+            if self.chrom_groupname in f:
+                del f[self.chrom_groupname]
+            chromsizes_group = f.create_group(self.chrom_groupname)
+            chromsizes_group.create_dataset('chrom', data=names)
+            chromsizes_group.create_dataset('size', data=sizes)
+
+    def _read_dna_parts(self, f: h5py.File, rna_name: str) -> pd.DataFrame:
+        if self.dna_groupname not in f:
+            raise Exception
+        dna_parts_group = f[self.dna_groupname]
+        if rna_name not in dna_parts_group:
+            raise Exception
+        rna_group = dna_parts_group[rna_name]
+        dna_parts_list = list()
+        for chrom_name, chrom_group in rna_group.items():
+            starts = chrom_group['start'][()]
+            ends = chrom_group['end'][()]
+            dna_parts_list.append(pd.DataFrame({'chrom': chrom_name, 'start': starts, 'end': ends}))
+        return pd.concat(dna_parts_list, ignore_index=True)
+
+    def read_dna_parts(self, rna_name: str) -> pd.DataFrame:
+        with h5py.File(self.fname, 'r') as f:
+            dna_parts = self._read_dna_parts(f, rna_name)
+        return dna_parts
+
+    def _write_dna_parts(self,
+                         f: h5py.File,
+                         rna_name: str,
+                         dna_parts: pd.DataFrame) -> None:
         annotation_dict = self.annotation
         rna_annot = annotation_dict[rna_name]
 
@@ -207,38 +226,21 @@ class DnaDataset:
             rna_chrom_group.create_dataset('start', data=starts)
             rna_chrom_group.create_dataset('end', data=ends)
 
-    def write_dna_parts_single(self,
-                               rna_name: str,
-                               dna_parts: pd.DataFrame) -> None:
+    def write_dna_parts(self,
+                        rna_name: str,
+                        dna_parts: pd.DataFrame) -> None:
         with h5py.File(self.fname, 'a') as f:
             self._write_dna_parts_single(f, rna_name, dna_parts)
 
-    def write_dna_parts(self, dna_frame: pd.DataFrame) -> None:
+    def write_dna_parts_batch(self,
+                              dna_frame: pd.DataFrame,
+                              rna_col: str = 'name') -> None:
         annotation_dict = self.annotation
         self.validate_dna_frame(dna_frame, annotation_dict, self.chromsizes)
         self.validate_annotation(annotation_dict, self.chromsizes)
         with h5py.File(self.fname, 'a') as f:
-            for rna_name, dna_parts in dna_frame.groupby('name'):
-                self._write_dna_parts_single(f, rna_name, dna_parts)
-
-    def _read_dna_parts_single(self, f: h5py.File, rna_name: str) -> pd.DataFrame:
-        if self.dna_groupname not in f:
-            raise Exception
-        dna_parts_group = f[self.dna_groupname]
-        if rna_name not in dna_parts_group:
-            raise Exception
-        rna_group = dna_parts_group[rna_name]
-        dna_parts_list = list()
-        for chrom_name, chrom_group in rna_group.items():
-            starts = chrom_group['start'][()]
-            ends = chrom_group['end'][()]
-            dna_parts_list.append(pd.DataFrame({'chrom': chrom_name, 'start': starts, 'end': ends}))
-        return pd.concat(dna_parts_list, ignore_index=True)
-
-    def read_dna_parts_single(self, rna_name: str) -> pd.DataFrame:
-        with h5py.File(self.fname, 'r') as f:
-            dna_parts = self._read_dna_parts_single(f, rna_name)
-        return dna_parts
+            for rna_name, dna_parts in dna_frame.groupby(rna_col):
+                self._write_dna_parts(f, rna_name, dna_parts)
 
     def _get_coordinates(self, f: h5py.File, rna_name: str) -> GeneCoord:
         if self.dna_groupname not in f:
@@ -275,22 +277,22 @@ class DnaDataset:
             sizes = {rna_name: rna_group.attrs['total_contacts'] for rna_name, rna_group in dna_group.items()}
         return sizes
 
-    def write_attribute(self, name: str, data: Dict[str, Any]) -> None:
-        with h5py.File(self.fname, 'a') as f:
-            if self.dna_groupname not in f:
-                raise Exception
-            dna_group = f[self.dna_groupname]
-            for rna_name, value in data.items():
-                if rna_name in dna_group:
-                    dna_group[rna_name].attrs[name] = value
-
-    def read_attribute(self, attrname: str) -> Dict[str, Any]:
+    def read_rna_attribute_batch(self, attrname: str) -> Dict[str, Any]:
         with h5py.File(self.fname, 'r') as f:
             if self.dna_groupname not in f:
                 raise Exception
             dna_group = f[self.dna_groupname]
             data = {rna_name: rna_group.attrs.get(attrname) for rna_name, rna_group in dna_group.items()}
         return data
+
+    def write_rna_attribute_batch(self, attrname: str, data: Dict[str, Any]) -> None:
+        with h5py.File(self.fname, 'a') as f:
+            if self.dna_groupname not in f:
+                raise Exception
+            dna_group = f[self.dna_groupname]
+            for rna_name, value in data.items():
+                if rna_name in dna_group:
+                    dna_group[rna_name].attrs[attrname] = value
 
 
 class Rdc:
@@ -328,7 +330,7 @@ class Rdc:
 
         self._chromsizes: Optional[Dict[str, int]] = chromsizes
         if chromsizes is not None:
-            self.write_chromsizes()
+            self._write_chromsizes()
 
         self._annotation: Optional[Dict[str, GeneCoord]] = None
         self._is_scaling_fitted: Optional[bool] = None
@@ -341,7 +343,7 @@ class Rdc:
     def chromsizes(self) -> Dict[str, int]:
         if self._chromsizes is None:
             try:
-                self._chromsizes = self.read_chromsizes()
+                self._chromsizes = self._read_chromsizes()
             except Exception:
                 raise Exception
         return self._chromsizes
@@ -349,9 +351,9 @@ class Rdc:
     @chromsizes.setter
     def chromsizes(self, chromdict: Dict[str, int]) -> None:
         self._chromsizes = chromdict
-        self.write_chromsizes()
+        self._write_chromsizes()
 
-    def read_chromsizes(self) -> Dict[str, int]:
+    def _read_chromsizes(self) -> Dict[str, int]:
         if not self.fname.exists():
             raise Exception
 
@@ -368,7 +370,7 @@ class Rdc:
 
         return dict(zip(names, sizes))
 
-    def write_chromsizes(self) -> None:
+    def _write_chromsizes(self) -> None:
         chromsizes_dict = self.chromsizes
         with h5py.File(self.fname, 'a') as f:
             names = np.array(list(chromsizes_dict.keys()), dtype='O')
@@ -378,16 +380,6 @@ class Rdc:
             chromsizes_group = f.create_group(self.chrom_groupname)
             chromsizes_group.create_dataset('chrom', data=names)
             chromsizes_group.create_dataset('size', data=sizes)
-
-    def write_bg_track(self, bg_track: pd.DataFrame) -> None:
-        with h5py.File(self.fname, 'a') as f:
-            if self.bg_groupname in f:
-                del f[self.bg_groupname]
-            bg_group = f.create_group(self.bg_groupname)
-            for chrom_name, chrom_df in bg_track.groupby('chrom'):
-                chrom_group = bg_group.create_group(chrom_name)
-                for key in ('start', 'end', 'count'):
-                    chrom_group.create_dataset(key, data=chrom_df[key].values)
 
     def read_bg_track(self) -> pd.DataFrame:
         with h5py.File(self.fname, 'r') as f:
@@ -403,129 +395,21 @@ class Rdc:
                 bg_dfs.append(chrom_df)
             return pd.concat(bg_dfs, ignore_index=True)
 
-    def _write_pixels_single(self,
-                             f: h5py.File,
-                             rna_name: str,
-                             pixels_df: pd.DataFrame,
-                             rna_coords: GeneCoord,
-                             rna_attrs: RnaAttrs) -> None:
-        if self.pixels_groupname not in f:
-            pixels_group = f.create_group(self.pixels_groupname)
-        else:
-            pixels_group = f[self.pixels_groupname]
-
-        if rna_name in pixels_group:
-            del pixels_group[rna_name]
-        rna_group = pixels_group.create_group(rna_name)
-
-        rna_dict = asdict(rna_attrs)
-        rna_dict.update(asdict(rna_coords))
-        for key, value in rna_dict.items():
-            if value is not None:
-                rna_group.attrs[key] = value
-
-        for chrom_name, chrom_df in pixels_df.groupby('chrom'):
-            chrom_group = rna_group.create_group(chrom_name)
-            for col_name, col_dtype in self.pixels_cols.items():
-                if col_name in chrom_df:
-                    col_data = chrom_df[col_name].values.astype(col_dtype)
-                    chrom_group.create_dataset(col_name, data=col_data)
-
-    def write_pixels_single(self, rna_name, pixels_df, rna_coords, rna_attrs) -> None:
+    def write_bg_track(self, bg_track: pd.DataFrame) -> None:
         with h5py.File(self.fname, 'a') as f:
-            self._write_pixels_single(f, rna_name, pixels_df, rna_coords, rna_attrs)
+            if self.bg_groupname in f:
+                del f[self.bg_groupname]
+            bg_group = f.create_group(self.bg_groupname)
+            for chrom_name, chrom_df in bg_track.groupby('chrom'):
+                chrom_group = bg_group.create_group(chrom_name)
+                for key in ('start', 'end', 'count'):
+                    chrom_group.create_dataset(key, data=chrom_df[key].values)
 
-    def write_pixels(self, data: Dict[str, RnaPixelRecord]) -> None:
-        with h5py.File(self.fname, 'a') as f:
-            for rna_name, rna_record in data.items():
-                pixels_df = rna_record.pixels
-                rna_coord = rna_record.gene_coord
-                rna_attrs = rna_record.rna_attrs
-                self._write_pixels_single(f, rna_name, pixels_df, rna_coord, rna_attrs)
-
-    def _write_array_single(self, f: h5py.File, rna_name: str, arr_name: str, array: pd.DataFrame) -> None:
-        if self.pixels_groupname not in f:
-            raise Exception
-        pixels_group = f[self.pixels_groupname]
-        if rna_name not in pixels_group:
-            raise Exception
-        rna_group = pixels_group[rna_name]
-
-        for chrom_name, chrom_df in array.groupby('chrom'):
-            if chrom_name not in rna_group:
-                raise Exception
-            chrom_group = rna_group[chrom_name]
-            if arr_name not in self.pixels_cols:
-                raise Exception
-            arr_dtype = self.pixels_cols[arr_name]
-            arr_data = chrom_df[arr_name].values.astype(arr_dtype)
-            if arr_name in chrom_group:
-                chrom_group[arr_name][...] = arr_data
-            else:
-                chrom_group.create_dataset(arr_name, data=arr_data)
-
-    def write_array_single(self, rna_name: str, arr_name: str, array: pd.DataFrame) -> None:
-        with h5py.File(self.fname, 'a') as f:
-            self._write_array_single(f, rna_name, arr_name, array)
-
-    def write_array(self, arr_name: str, arrays: Dict[str, pd.DataFrame]) -> None:
-        with h5py.File(self.fname, 'a') as f:
-            for rna_name, array in arrays.items():
-                self._write_array_single(f, rna_name, arr_name, array)
-
-    def write_attribute(self, attrname: str, data: Dict[str, Any]) -> None:
-        with h5py.File(self.fname, 'a') as f:
-            if self.pixels_groupname not in f:
-                raise Exception
-            pixels_group = f[self.pixels_groupname]
-            for rna_name, value in data.items():
-                if rna_name in pixels_group:
-                    pixels_group[rna_name].attrs[attrname] = value
-
-    def read_attribute(self, attrname) -> Dict[str, Any]:
-        with h5py.File(self.fname, 'r') as f:
-            if self.pixels_groupname not in f:
-                raise Exception
-            pixels_group = f[self.pixels_groupname]
-            data = {rna_name: rna_group.attrs.get(attrname) for rna_name, rna_group in pixels_group.items()}
-        return data
-
-    def write_scaling_splines(self, scaling_splines: Dict[str, SplineResult]) -> None:
-        rna_spline_t = {rna_name: tck.t for rna_name, tck in scaling_splines.items()}
-        rna_spline_c = {rna_name: tck.c for rna_name, tck in scaling_splines.items()}
-        rna_spline_k = {rna_name: tck.k for rna_name, tck in scaling_splines.items()}
-        self.write_attribute('scaling_spline_t', rna_spline_t)
-        self.write_attribute('scaling_spline_c', rna_spline_c)
-        self.write_attribute('scaling_spline_k', rna_spline_k)
-
-    def read_scaling_splines(self) -> Dict[str, SplineResult]:
-        rna_spline_t = self.read_attribute('scaling_spline_t')
-        rna_spline_c = self.read_attribute('scaling_spline_c')
-        rna_spline_k = self.read_attribute('scaling_spline_k')
-        scaling_splines = {rna_name: SplineResult(t=rna_spline_t[rna_name], c=rna_spline_c[rna_name], k=rna_spline_k[rna_name])
-                           for rna_name in rna_spline_t}
-        return scaling_splines
-
-    def read_scaling_single(self, rna_name: str) -> SplineResult:
-        if not self.is_scaling_fitted:
-            raise Exception
-        with h5py.File(self.fname, 'r') as f:
-            if self.pixels_groupname not in f:
-                raise Exception
-            pixels_group = f[self.pixels_groupname]
-            if rna_name not in pixels_group:
-                raise Exception
-            rna_group = pixels_group[rna_name]
-            spline_result = SplineResult(t=rna_group.attrs['scaling_spline_t'],
-                                         c=rna_group.attrs['scaling_spline_c'],
-                                         k=rna_group.attrs['scaling_spline_k'])
-        return spline_result
-
-    def _read_pixels_single(self,
-                            f: h5py.File,
-                            rna_name: str,
-                            value_fields: Optional[List] = None,
-                            chrom_type: Optional[str] = None) -> pd.DataFrame:
+    def _read_pixels(self,
+                     f: h5py.File,
+                     rna_name: str,
+                     value_fields: Optional[List] = None,
+                     chrom_type: Optional[str] = None) -> pd.DataFrame:
         if self.pixels_groupname not in f:
             raise Exception
         pixels_group = f[self.pixels_groupname]
@@ -564,12 +448,133 @@ class Rdc:
         result = pd.concat(chrom_dfs, ignore_index=True)
         return result
 
-    def read_pixels_single(self,
-                           rna_name: str,
-                           value_fields: Optional[List] = None,
-                           chrom_type: Optional[str] = None) -> pd.DataFrame:
+    def read_pixels(self,
+                    rna_name: str,
+                    value_fields: Optional[List] = None,
+                    chrom_type: Optional[str] = None) -> pd.DataFrame:
         with h5py.File(self.fname, 'r') as f:
-            return self._read_pixels_single(f, rna_name, value_fields=value_fields, chrom_type=chrom_type)
+            return self._read_pixels(f, rna_name, value_fields=value_fields, chrom_type=chrom_type)
+
+    def _write_pixels(self,
+                      f: h5py.File,
+                      rna_name: str,
+                      pixels_df: pd.DataFrame,
+                      rna_coords: GeneCoord,
+                      rna_attrs: RnaAttrs) -> None:
+        if self.pixels_groupname not in f:
+            pixels_group = f.create_group(self.pixels_groupname)
+        else:
+            pixels_group = f[self.pixels_groupname]
+
+        if rna_name in pixels_group:
+            del pixels_group[rna_name]
+        rna_group = pixels_group.create_group(rna_name)
+
+        rna_dict = asdict(rna_attrs)
+        rna_dict.update(asdict(rna_coords))
+        for key, value in rna_dict.items():
+            if value is not None:
+                rna_group.attrs[key] = value
+
+        for chrom_name, chrom_df in pixels_df.groupby('chrom'):
+            chrom_group = rna_group.create_group(chrom_name)
+            for col_name, col_dtype in self.pixels_cols.items():
+                if col_name in chrom_df:
+                    col_data = chrom_df[col_name].values.astype(col_dtype)
+                    chrom_group.create_dataset(col_name, data=col_data)
+
+    def write_pixels(self, rna_name, pixels_df, rna_coords, rna_attrs) -> None:
+        with h5py.File(self.fname, 'a') as f:
+            self._write_pixels(f, rna_name, pixels_df, rna_coords, rna_attrs)
+
+    def write_pixels_batch(self, data: Dict[str, RnaPixelRecord]) -> None:
+        with h5py.File(self.fname, 'a') as f:
+            for rna_name, rna_record in data.items():
+                pixels_df = rna_record.pixels
+                rna_coord = rna_record.gene_coord
+                rna_attrs = rna_record.rna_attrs
+                self._write_pixels(f, rna_name, pixels_df, rna_coord, rna_attrs)
+
+    def _write_pixels_column(self, f: h5py.File, rna_name: str, col_name: str, col_frame: pd.DataFrame) -> None:
+        if self.pixels_groupname not in f:
+            raise Exception
+        pixels_group = f[self.pixels_groupname]
+        if rna_name not in pixels_group:
+            raise Exception
+        rna_group = pixels_group[rna_name]
+
+        for chrom_name, chrom_df in col_frame.groupby('chrom'):
+            if chrom_name not in rna_group:
+                raise Exception
+            chrom_group = rna_group[chrom_name]
+            if col_name not in self.pixels_cols:
+                raise Exception
+            arr_dtype = self.pixels_cols[col_name]
+            arr_data = chrom_df[col_name].values.astype(arr_dtype)
+            if col_name in chrom_group:
+                chrom_group[col_name][...] = arr_data
+            else:
+                chrom_group.create_dataset(col_name, data=arr_data)
+
+    def write_pixels_column(self, rna_name: str, col_name: str, col_frame: pd.DataFrame) -> None:
+        with h5py.File(self.fname, 'a') as f:
+            self._write_pixels_column(f, rna_name, col_name, col_frame)
+
+    def write_pixels_column_batch(self, col_name: str, col_frames: Dict[str, pd.DataFrame]) -> None:
+        with h5py.File(self.fname, 'a') as f:
+            for rna_name, col_frame in col_frames.items():
+                self._write_pixels_column(f, rna_name, col_name, col_frame)
+
+    def read_rna_attribute_batch(self, attrname) -> Dict[str, Any]:
+        with h5py.File(self.fname, 'r') as f:
+            if self.pixels_groupname not in f:
+                raise Exception
+            pixels_group = f[self.pixels_groupname]
+            data = {rna_name: rna_group.attrs.get(attrname)
+                    for rna_name, rna_group in pixels_group.items()}
+        return data
+
+    def write_rna_attribute_batch(self, attrname: str, data: Dict[str, Any]) -> None:
+        with h5py.File(self.fname, 'a') as f:
+            if self.pixels_groupname not in f:
+                raise Exception
+            pixels_group = f[self.pixels_groupname]
+            for rna_name, value in data.items():
+                if rna_name in pixels_group:
+                    pixels_group[rna_name].attrs[attrname] = value
+
+    def read_scaling(self, rna_name: str) -> SplineResult:
+        if not self.is_scaling_fitted:
+            raise Exception
+        with h5py.File(self.fname, 'r') as f:
+            if self.pixels_groupname not in f:
+                raise Exception
+            pixels_group = f[self.pixels_groupname]
+            if rna_name not in pixels_group:
+                raise Exception
+            rna_group = pixels_group[rna_name]
+            spline_result = SplineResult(t=rna_group.attrs['scaling_spline_t'],
+                                         c=rna_group.attrs['scaling_spline_c'],
+                                         k=rna_group.attrs['scaling_spline_k'])
+        return spline_result
+
+    def read_scaling_batch(self) -> Dict[str, SplineResult]:
+        rna_spline_t = self.read_rna_attribute_batch('scaling_spline_t')
+        rna_spline_c = self.read_rna_attribute_batch('scaling_spline_c')
+        rna_spline_k = self.read_rna_attribute_batch('scaling_spline_k')
+        scaling_splines = {rna_name: SplineResult(t=rna_spline_t[rna_name],
+                                                  c=rna_spline_c[rna_name],
+                                                  k=rna_spline_k[rna_name])
+                           for rna_name in rna_spline_t}
+        return scaling_splines
+
+    def write_scaling_batch(self, scaling_splines: Dict[str, SplineResult]) -> None:
+        rna_spline_t = {rna_name: tck.t for rna_name, tck in scaling_splines.items()}
+        rna_spline_c = {rna_name: tck.c for rna_name, tck in scaling_splines.items()}
+        rna_spline_k = {rna_name: tck.k for rna_name, tck in scaling_splines.items()}
+        self.write_rna_attribute_batch('scaling_spline_t', rna_spline_t)
+        self.write_rna_attribute_batch('scaling_spline_c', rna_spline_c)
+        self.write_rna_attribute_batch('scaling_spline_k', rna_spline_k)
 
     def _get_annotation(self) -> Dict[str, GeneCoord]:
         with h5py.File(self.fname, 'r') as f:

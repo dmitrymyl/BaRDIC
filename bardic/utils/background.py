@@ -11,9 +11,9 @@ def make_background_track(dna_dataset: DnaDataset, rnas: List, binsize: int = 10
     bg_contacts = list()
     for rna_name in rnas:
         if rna_name in dna_dataset.annotation:
-            dna_df = dna_dataset.read_dna_parts_single(rna_name)
+            dna_df = dna_dataset.read_dna_parts(rna_name)
             rna_chrom = dna_dataset.annotation[rna_name].chrom
-            dna_df = dna_df.query("chrom != @rna_chrom").reset_index(drop=True)
+            dna_df = dna_df.query(f"chrom != '{rna_chrom}'").reset_index(drop=True)
             bg_contacts.append(dna_df)
     bg_df = pd.concat(bg_contacts)
     bg_centers = make_interval_centers(bg_df)

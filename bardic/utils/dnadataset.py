@@ -16,5 +16,5 @@ def bed2h5(bed_fname: str,
                           for rna_name, gene_coord in annotation.items()
                           if rna_name in present_rnas}
     dataset = DnaDataset(h5_fname, chromsizes, refined_annotation)
-    dataset.write_dna_parts(dna_frame)
+    dataset.write_dna_parts_batch(dna_frame)
     return dataset

@@ -25,7 +25,7 @@ def _get_rna_attrs(rna_name: str, attrs_vector: Dict[str, Dict[str, Any]]) -> Rn
 
 
 def _extract_dna_contacts(dna_dataset: DnaDataset, rna_name: str) -> pd.DataFrame:
-    return dna_dataset.read_dna_parts_single(rna_name)
+    return dna_dataset.read_dna_parts(rna_name)
 
 
 def _cook_pixels(rna_name, dna_contacts, rna_annot, rna_attrs, bg_track, chromdict, ivalue=None):
@@ -45,7 +45,7 @@ def dnadataset_to_rdc(dna_dataset: DnaDataset, bg_track: pd.DataFrame, fname: st
     rna_attr_names = ('eligible',
                       'cis_factor', 'cis_start', 'trans_bin_size',
                       'total_contacts', 'genic_contacts', 'cis_contacts', 'trans_contacts')
-    rnas_attrs_vector = {attr: dna_dataset.read_attribute(attr)
+    rnas_attrs_vector = {attr: dna_dataset.read_rna_attribute_batch(attr)
                          for attr in rna_attr_names}
     eligible_rnas = [rna_name
                      for rna_name, eligible in rnas_attrs_vector['eligible'].items()
@@ -63,5 +63,5 @@ def dnadataset_to_rdc(dna_dataset: DnaDataset, bg_track: pd.DataFrame, fname: st
 
     rdc = Rdc(fname, chromdict)
     rdc.write_bg_track(bg_track)
-    rdc.write_pixels(dict(results))
+    rdc.write_pixels_batch(dict(results))
     return rdc
