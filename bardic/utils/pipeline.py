@@ -3,8 +3,8 @@ from typing import Dict, List
 import pandas as pd
 
 from ..api.convert import annotation_to_dict
-from ..api.io import load_bedgraph
-from . import (bed2h5, calculate_bin_sizes, calculate_scaling_splines,
+from ..api.io import read_bedgraph
+from . import (bed2h5, optimize_bin_sizes, calculate_scaling_splines,
                dnadataset_to_rdc, estimate_significance, fetch_peaks,
                format_peaks, make_background_track)
 
@@ -31,14 +31,14 @@ def run_pipeline(dna_parts_fname: str,
 
     dna_dataset = bed2h5(dna_parts_fname, dna_dataset_fname, chromdict, annotation_dict)
 
-    selection_df = calculate_bin_sizes(dna_dataset, n_cores=n_cores, **binsize_params)
+    selection_df = optimize_bin_sizes(dna_dataset, n_cores=n_cores, **binsize_params)
     selection_df.to_csv(selection_results_fname, sep='\t', header=True, index=False)
 
     if makebg:
         bg_track = make_background_track(dna_dataset, rna_list, bg_binsize)
         bg_track.to_csv(bg_fname, header=False, index=False, sep='\t')
     else:
-        bg_track = load_bedgraph(bg_fname)
+        bg_track = read_bedgraph(bg_fname)
 
     rdc_data = dnadataset_to_rdc(dna_dataset, bg_track, rdc_fname, n_cores=n_cores, **rdc_params)
 

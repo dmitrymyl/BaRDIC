@@ -9,7 +9,7 @@ from ..api.formats import DnaDataset, Rdc
 from ..api.schemas import RnaAttrs, RnaPixelRecord
 
 
-def imputation_value(bg_track: pd.DataFrame, ifactor=0.01) -> float:
+def _imputation_value(bg_track: pd.DataFrame, ifactor=0.01) -> float:
     bg_binsizes = bg_track['end'] - bg_track['start']
     mean_bg_count_per_nt = (bg_track['count'] / bg_binsizes).mean()
     ivalue = mean_bg_count_per_nt * ifactor
@@ -39,7 +39,7 @@ def dnadataset_to_rdc(dna_dataset: DnaDataset, bg_track: pd.DataFrame, fname: st
     if ifactor is None:
         ivalue = None
     else:
-        ivalue = imputation_value(bg_track, ifactor)
+        ivalue = _imputation_value(bg_track, ifactor)
     chromdict = dna_dataset.chromsizes
     annotation = dna_dataset.annotation
     rna_attr_names = ('eligible',

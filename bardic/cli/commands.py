@@ -3,14 +3,14 @@ import os
 
 from ..api.convert import annotation_to_dict
 from ..api.formats import DnaDataset, Rdc
-from ..api.io import get_chromsizes, load_annotation, load_bedgraph
-from ..utils import (bed2h5, calculate_bin_sizes, calculate_scaling_splines,
+from ..api.io import get_chromsizes, read_annotation, read_bedgraph
+from ..utils import (bed2h5, optimize_bin_sizes, calculate_scaling_splines,
                      dnadataset_to_rdc, estimate_significance, fetch_peaks,
                      format_peaks, make_background_track, run_pipeline)
 
 
 def bed2h5_cli(annotation: str, chromsizes: str, dnaparts: str, output: str):
-    annotation_dict = annotation_to_dict(load_annotation(annotation))
+    annotation_dict = annotation_to_dict(read_annotation(annotation))
     chromsizes_dict = get_chromsizes(chromsizes)
     _ = bed2h5(bed_fname=dnaparts,
                h5_fname=output,
@@ -32,18 +32,18 @@ def binsizes_cli(dna_dataset: str,
                  w: int = 1,
                  n_cores: int = 1):
     dna_dataset_obj = DnaDataset(dna_dataset)
-    selection_results = calculate_bin_sizes(dna_dataset=dna_dataset_obj,
-                                            n_contacts=n_contacts,
-                                            trans_min=trans_min,
-                                            trans_max=trans_max,
-                                            trans_step=trans_step,
-                                            cis_min=cis_min,
-                                            cis_max=cis_max,
-                                            cis_step=cis_step,
-                                            cis_start=cis_start,
-                                            tolerance=tolerance,
-                                            w=w,
-                                            n_cores=n_cores)
+    selection_results = optimize_bin_sizes(dna_dataset=dna_dataset_obj,
+                                           n_contacts=n_contacts,
+                                           trans_min=trans_min,
+                                           trans_max=trans_max,
+                                           trans_step=trans_step,
+                                           cis_min=cis_min,
+                                           cis_max=cis_max,
+                                           cis_step=cis_step,
+                                           cis_start=cis_start,
+                                           tolerance=tolerance,
+                                           w=w,
+                                           n_cores=n_cores)
     selection_results.to_csv(output, header=True, index=False, sep='\t')
 
 
@@ -66,7 +66,7 @@ def makerdc_cli(dna_dataset: str,
                 output: str,
                 n_cores: int = 1):
     dna_dataset_obj = DnaDataset(dna_dataset)
-    bg_track = load_bedgraph(bg)
+    bg_track = read_bedgraph(bg)
     _ = dnadataset_to_rdc(dna_dataset=dna_dataset_obj,
                           bg_track=bg_track,
                           fname=output,
@@ -150,7 +150,7 @@ def run_pipeline_cli(dnaparts: str,
 
     peaks_output = os.path.join(outdir, "peaks." + format)
 
-    annotation_df = load_annotation(annotation)
+    annotation_df = read_annotation(annotation)
     chromsizes_dict = get_chromsizes(chromsizes)
 
     run_pipeline(dna_parts_fname=dnaparts,

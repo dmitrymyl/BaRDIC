@@ -7,8 +7,8 @@ import pandas as pd
 from .binops import calculate_bins_coverage, make_interval_centers
 
 
-def calculate_cost_function_from_bins(bins_coverage: pd.DataFrame,
-                                      bs: Union[int, float]) -> float:
+def _calculate_cost_function_from_bins(bins_coverage: pd.DataFrame,
+                                       bs: Union[int, float]) -> float:
     """Caculates cost function from bin coverage dataframe.
 
     Args:
@@ -26,10 +26,10 @@ def calculate_cost_function_from_bins(bins_coverage: pd.DataFrame,
     return cost_func_value
 
 
-def calculate_cost_function(contacts_df: pd.DataFrame,
-                            bin_size: Union[int, float],
-                            binner: Callable,
-                            **kwargs) -> float:
+def _calculate_cost_function(contacts_df: pd.DataFrame,
+                             bin_size: Union[int, float],
+                             binner: Callable,
+                             **kwargs) -> float:
     """Calculates cost function for given contacts and bin size.
 
     Args:
@@ -44,7 +44,7 @@ def calculate_cost_function(contacts_df: pd.DataFrame,
     """
     bins_df = binner(bin_size, **kwargs)
     bins_coverage = calculate_bins_coverage(bins_df, contacts_df)
-    return calculate_cost_function_from_bins(bins_coverage, bin_size)
+    return _calculate_cost_function_from_bins(bins_coverage, bin_size)
 
 
 def optimize_cost_function(contacts_df: pd.DataFrame,
@@ -88,10 +88,10 @@ def optimize_cost_function(contacts_df: pd.DataFrame,
     bin_sizes = np.around(np.arange(start, end + step, step), -int(np.log10(min(start, step))))
     deq: Deque[float] = deque()
     for i, cur_bin_size in enumerate(bin_sizes):
-        cur_cost_value = calculate_cost_function(contacts_centers_df,
-                                                 cur_bin_size,
-                                                 binner,
-                                                 **kwargs)
+        cur_cost_value = _calculate_cost_function(contacts_centers_df,
+                                                  cur_bin_size,
+                                                  binner,
+                                                  **kwargs)
         if i < w:
             deq.append(cur_cost_value)
             prev_bin_size = cur_bin_size

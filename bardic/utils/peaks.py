@@ -10,25 +10,25 @@ from tqdm.contrib.concurrent import process_map
 from ..api.formats import Rdc
 
 
-def calculate_pvals_single(rna_name: str, total_contacts: int, rdc_data: Rdc) -> Tuple[str, pd.DataFrame]:
+def _calculate_pvals_single(rna_name: str, total_contacts: int, rdc_data: Rdc) -> Tuple[str, pd.DataFrame]:
     pixels = rdc_data.read_pixels(rna_name, value_fields=['signal_count', 'bg_prob'])
     pvals = pixels.apply(lambda row: np.nan if row['signal_count'] == 0 else ss.binomtest(k=row['signal_count'], n=total_contacts, p=row['bg_prob'], alternative='greater').pvalue, axis=1)
     pixels['pvalue'] = pvals
     return rna_name, pixels[['chrom', 'pvalue']]
 
 
-def calculate_pvals(rdc_data: Rdc, n_cores: int = 1) -> Dict[str, pd.DataFrame]:
+def _calculate_pvals(rdc_data: Rdc, n_cores: int = 1) -> Dict[str, pd.DataFrame]:
     cis_contacts_num = rdc_data.read_rna_attribute_batch('cis_contacts')
     trans_contacts_num = rdc_data.read_rna_attribute_batch('trans_contacts')
     rna_names = list(cis_contacts_num.keys())
     total_contacts_gen = (cis_contacts_num[rna_name] + trans_contacts_num[rna_name] for rna_name in rna_names)
-    func = partial(calculate_pvals_single, rdc_data=rdc_data)
+    func = partial(_calculate_pvals_single, rdc_data=rdc_data)
     results = dict(process_map(func, rna_names, total_contacts_gen, max_workers=n_cores))
     return results
 
 
 def estimate_significance(rdc_data: Rdc, n_cores: int = 1) -> None:
-    total_stats = calculate_pvals(rdc_data, n_cores)
+    total_stats = _calculate_pvals(rdc_data, n_cores)
 
     rna_dfs_handler = list()
     for rna_name, rna_stats in total_stats.items():
@@ -50,7 +50,7 @@ def estimate_significance(rdc_data: Rdc, n_cores: int = 1) -> None:
     rdc_data.are_peaks_estimated = True
 
 
-def fetch_peaks_single(rna_name: str, rdc_data: Rdc, threshold: float = 0.05) -> pd.DataFrame:
+def _fetch_peaks_single(rna_name: str, rdc_data: Rdc, threshold: float = 0.05) -> pd.DataFrame:
     pixels = rdc_data.read_pixels(rna_name)
     peaks = pixels.query('qvalue < @threshold').reset_index(drop=True)
     peaks['rna_name'] = rna_name
@@ -62,7 +62,7 @@ def fetch_peaks(rdc_data: Rdc, threshold: float = 0.05, n_cores: int = 1) -> pd.
         raise Exception
     annotation = rdc_data.annotation
     rna_names = list(annotation.keys())
-    func = partial(fetch_peaks_single, rdc_data=rdc_data, threshold=threshold)
+    func = partial(_fetch_peaks_single, rdc_data=rdc_data, threshold=threshold)
     results = process_map(func, rna_names, max_workers=n_cores)
     return pd.concat(results, ignore_index=True)
 

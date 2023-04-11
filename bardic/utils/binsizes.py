@@ -11,7 +11,7 @@ from ..api.formats import DnaDataset
 from ..api.optim import optimize_cost_function
 
 
-def calculate_bin_size_single(gene_name: str,
+def _optimize_bin_size_single(gene_name: str,
                               dna_dataset: DnaDataset,
                               make_trans_bins: Callable = make_trans_bins,
                               trans_min: int = 10000,
@@ -108,21 +108,20 @@ def calculate_bin_size_single(gene_name: str,
     return results_dict
 
 
-def calculate_bin_sizes(dna_dataset: DnaDataset,
-                        n_contacts: int = 1000,
-                        make_trans_bins: Callable = make_trans_bins,
-                        trans_min: int = 10000,
-                        trans_max: int = 1000000,
-                        trans_step: int = 1000,
-                        make_cis_bins: Callable = make_cis_bins,
-                        cis_min: float = 1.1,
-                        cis_max: float = 2.,
-                        cis_step: float = 0.01,
-                        cis_start: int = 5000,
-                        tolerance: float = 0.01,
-                        w: int = 1,
-                        n_cores: int = 1) -> pd.DataFrame:
-
+def optimize_bin_sizes(dna_dataset: DnaDataset,
+                       n_contacts: int = 1000,
+                       make_trans_bins: Callable = make_trans_bins,
+                       trans_min: int = 10000,
+                       trans_max: int = 1000000,
+                       trans_step: int = 1000,
+                       make_cis_bins: Callable = make_cis_bins,
+                       cis_min: float = 1.1,
+                       cis_max: float = 2.,
+                       cis_step: float = 0.01,
+                       cis_start: int = 5000,
+                       tolerance: float = 0.01,
+                       w: int = 1,
+                       n_cores: int = 1) -> pd.DataFrame:
     rna_contact_amount = dna_dataset.get_num_contacts()
     rna_eligibility = {rna_name: rna_num_contacts >= n_contacts
                        for rna_name, rna_num_contacts in rna_contact_amount.items()}
@@ -144,7 +143,7 @@ def calculate_bin_sizes(dna_dataset: DnaDataset,
               "cis_step": cis_step,
               "cis_start": cis_start}
 
-    func = partial(calculate_bin_size_single, **config)
+    func = partial(_optimize_bin_size_single, **config)
     bin_selection_results = process_map(func, selected_rnas, max_workers=n_cores)
 
     attr_names = ['genic_contacts',

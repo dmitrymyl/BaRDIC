@@ -7,7 +7,7 @@ import pandas as pd
 from .schemas import GeneCoord, RnaAttrs
 
 
-def make_geom_bins(length: int, start_size: int, factor: Union[int, float]) -> np.ndarray:
+def _make_geom_bins(length: int, start_size: int, factor: Union[int, float]) -> np.ndarray:
     """Makes geometrically increasing bins.
 
     Args:
@@ -34,7 +34,7 @@ def make_geom_bins(length: int, start_size: int, factor: Union[int, float]) -> n
     return bin_edges
 
 
-def prune_geom_bins(geom_bins: np.ndarray, max_linear_size: int) -> np.ndarray:
+def _prune_geom_bins(geom_bins: np.ndarray, max_linear_size: int) -> np.ndarray:
     """Prunes geometric bins to maximal linear size.
 
     Given output from `make_geom_bins` removes all bins
@@ -97,15 +97,15 @@ def make_cis_bins(factor: Union[int, float],
     upstream_size = gene_start
     downstream_size = chrom_length - gene_end
 
-    upstream_edges = make_geom_bins(upstream_size, start_size, factor)
+    upstream_edges = _make_geom_bins(upstream_size, start_size, factor)
     if max_linear_size is not None:
-        upstream_edges = prune_geom_bins(upstream_edges, max_linear_size)
+        upstream_edges = _prune_geom_bins(upstream_edges, max_linear_size)
     upstream_edges = gene_start - upstream_edges[::-1]
     upstream_df = pd.DataFrame({'chrom': chrom_name, 'start': upstream_edges[:-1], 'end': upstream_edges[1:]})
 
-    downstream_edges = make_geom_bins(downstream_size, start_size, factor)
+    downstream_edges = _make_geom_bins(downstream_size, start_size, factor)
     if max_linear_size is not None:
-        downstream_edges = prune_geom_bins(downstream_edges, max_linear_size)
+        downstream_edges = _prune_geom_bins(downstream_edges, max_linear_size)
     downstream_edges = gene_end + downstream_edges
     downstream_df = pd.DataFrame({'chrom': chrom_name, 'start': downstream_edges[:-1], 'end': downstream_edges[1:]})
 
@@ -115,9 +115,6 @@ def make_cis_bins(factor: Union[int, float],
     else:
         bins_df = pd.concat((upstream_df, downstream_df), ignore_index=True)
     return bins_df
-
-
-make_cis_bins3 = make_cis_bins
 
 
 def make_linear_bins(bin_size: int, chromsizes: Dict[str, int]) -> pd.DataFrame:
@@ -195,7 +192,7 @@ def calculate_bins_coverage(bins_df: pd.DataFrame, contacts_df: pd.DataFrame) ->
     return bf.count_overlaps(bins_df, contacts_df)
 
 
-def interval_centers(intervals_df: pd.DataFrame) -> pd.DataFrame:
+def make_interval_centers(intervals_df: pd.DataFrame) -> pd.DataFrame:
     """Make annotation of centers of provided intervals.
 
     Args:
@@ -213,28 +210,9 @@ def interval_centers(intervals_df: pd.DataFrame) -> pd.DataFrame:
     return intervals_centers_df
 
 
-make_interval_centers = interval_centers
-
-
-def make_rel_dist(point: int,
-                  start: int,
-                  end: int) -> int:
-    """Finds relative distance of a point to gene with [start; end] coordinates.
-
-    Returns:
-        int: relative distance.
-    """
-    if point < start:
-        return start - point
-    elif point > end:
-        return point - end
-    else:
-        return 0
-
-
-def make_rel_dist_vector(points: np.ndarray,
-                         start: int,
-                         end: int) -> np.ndarray:
+def calculate_dists_to_points(points: np.ndarray,
+                              start: int,
+                              end: int) -> np.ndarray:
     """Finds relative distance of points to gene with [start; end] coordinates.
 
     Args:
@@ -248,9 +226,9 @@ def make_rel_dist_vector(points: np.ndarray,
     return np.where(points < start, start - points, np.where(points > end, points - end, 0))
 
 
-def calculate_rel_dist_from_centers(cis_bins_df: pd.DataFrame,
-                                    gene_start: int,
-                                    gene_end: int) -> np.ndarray:
+def calculate_dists_to_centers(cis_bins_df: pd.DataFrame,
+                               gene_start: int,
+                               gene_end: int) -> np.ndarray:
     """Finds relative distance of bins centers to gene with [start; end] coordinates.
 
     Args:
@@ -262,7 +240,7 @@ def calculate_rel_dist_from_centers(cis_bins_df: pd.DataFrame,
         np.array: relative distances.
     """
     bins_centers = (cis_bins_df['start'] + cis_bins_df['end']) // 2
-    rel_dists = make_rel_dist_vector(bins_centers, gene_start, gene_end)
+    rel_dists = calculate_dists_to_points(bins_centers, gene_start, gene_end)
     return rel_dists
 
 
@@ -324,9 +302,6 @@ def make_track(bins_df: pd.DataFrame,
         bins_coverage['impute'] = False
     bins_coverage['bg_prob'] = bins_coverage['bg_count'] / bins_coverage['bg_count'].sum()
     return bins_coverage
-
-
-compute_track = make_track
 
 
 def make_genomic_track(dna_contacts: pd.DataFrame,

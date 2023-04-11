@@ -8,5 +8,6 @@ def main():
     kwargs = vars(args)
     func(**kwargs)
 
+
 if __name__ == "__main__":
     main()
