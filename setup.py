@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 
 setup(name='bardic',
@@ -8,14 +8,12 @@ setup(name='bardic',
       author='Dmitry Mylarshchikov',
       author_email='dmitrymyl@gmail.com',
       license='MIT',
-      packages=['bardic'],
+      packages=find_packages(),
       install_requires=['numpy',
                         'scipy',
                         'pandas',
                         'bioframe>=0.3.0',
                         'tqdm',
-                        # 'matplotlib',
-                        # 'seaborn',
                         'statsmodels',
                         'h5py'],
       python_requires='>=3.8',

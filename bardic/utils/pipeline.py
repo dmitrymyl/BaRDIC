@@ -4,9 +4,12 @@ import pandas as pd
 
 from ..api.convert import annotation_to_dict
 from ..api.io import read_bedgraph
-from . import (bed2h5, optimize_bin_sizes, calculate_scaling_splines,
-               dnadataset_to_rdc, estimate_significance, fetch_peaks,
-               format_peaks, make_background_track)
+from .background import make_background_track
+from .binsizes import optimize_bin_sizes
+from .dnadataset import bed2h5
+from .peaks import estimate_significance, fetch_peaks, format_peaks
+from .rdc import dnadataset_to_rdc
+from .scaling import calculate_scaling_splines
 
 
 def run_pipeline(dna_parts_fname: str,
