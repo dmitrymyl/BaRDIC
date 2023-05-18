@@ -6,6 +6,7 @@ from tqdm.contrib.concurrent import process_map
 
 from ..api.binops import make_genomic_track
 from ..api.formats import DnaDataset, Rdc
+from ..api.mp import adjust_chunksize
 from ..api.schemas import RnaAttrs, RnaPixelRecord
 
 
@@ -33,7 +34,12 @@ def _cook_pixels(rna_name, dna_contacts, rna_annot, rna_attrs, bg_track, chromdi
     return rna_name, RnaPixelRecord(**{'pixels': dna_track, 'gene_coord': rna_annot, 'rna_attrs': rna_attrs})
 
 
-def dnadataset_to_rdc(dna_dataset: DnaDataset, bg_track: pd.DataFrame, fname: str, ifactor: Optional[float] = 0.01, n_cores: int = 1) -> Rdc:
+def dnadataset_to_rdc(dna_dataset: DnaDataset,
+                      bg_track: pd.DataFrame,
+                      fname: str,
+                      ifactor: Optional[float] = 0.01,
+                      n_cores: int = 1,
+                      chunksize: int = 50) -> Rdc:
     if not dna_dataset.are_binsizes_selected:
         raise Exception
     if ifactor is None:
@@ -59,7 +65,16 @@ def dnadataset_to_rdc(dna_dataset: DnaDataset, bg_track: pd.DataFrame, fname: st
     rna_attrs_gen = (_get_rna_attrs(rna_name, rnas_attrs_vector)
                      for rna_name in eligible_rnas)
 
-    results = process_map(cook_pixels_prep, eligible_rnas, dna_contacts_gen, gene_coords_gen, rna_attrs_gen, max_workers=n_cores)
+    chunksize = adjust_chunksize(len(eligible_rnas), n_cores, chunksize)
+    results = process_map(cook_pixels_prep,
+                          eligible_rnas,
+                          dna_contacts_gen,
+                          gene_coords_gen,
+                          rna_attrs_gen,
+                          max_workers=n_cores,
+                          chunksize=chunksize,
+                          desc='Creating RDC',
+                          unit='RNA')
 
     rdc = Rdc(fname, chromdict)
     rdc.write_bg_track(bg_track)

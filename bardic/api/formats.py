@@ -1,3 +1,10 @@
+"""
+Describes two types of data used in BaRDIC and corresponding file types:
+1. DnaDataset and corresponding .dnah5 file type.
+2. Rdc and corresponding .rdc file type.
+"""
+
+
 from __future__ import annotations
 
 from dataclasses import asdict
@@ -63,6 +70,32 @@ class VersionProperty:
 
 
 class DnaDataset:
+    """
+    Handles DNA parts of contacts that are stored in an HDF5 .dnah5 file.
+
+    Parameters
+    ----------
+    fname
+        Filename of the corresponding .dnah5 file.
+        If the file doesn't exist, it will be created.
+    chromsizes
+        Dictionary in a form of `{chromosome_name: chromosome_size}`,
+        that contains chromosome sizes.
+    annotation
+        Dictionary in a form of `{gene_name: gene_coordinates}`,
+        that contains gene coordinates.
+
+    Attributes
+    ----------
+    chrom_groupname: str
+        Name of the chromosome sizes group in the .dnah5 file.
+    dna_groupname: str
+        Name of the dna parts group in the .dnah5 file.
+    are_binsizes_selected: bool
+        Indicates whether bin sizes were selected.
+    version: str
+        Version of .dnah5 schema.
+    """
     chrom_groupname: str = "chrom_sizes"
     dna_groupname: str = "dna_parts"
 
@@ -73,6 +106,26 @@ class DnaDataset:
                  fname: str,
                  chromsizes: Optional[Dict[str, int]] = None,
                  annotation: Optional[Dict[str, GeneCoord]] = None) -> None:
+        """Constructor
+
+        Parameters
+        ----------
+        fname
+            Filename of the corresponding .dnah5 file.
+            If the file doesn't exist, it will be created.
+        chromsizes
+            Dictionary in a form of `{chromosome_name: chromosome_size}`,
+            that contains chromosome sizes.
+        annotation
+            Dictionary in a form of `{gene_name: gene_coordinates}`,
+            that contains gene coordinates.
+
+        Raises
+        ------
+        ValueError
+            In case the version of the existing .dnah5 file is not `"1"`.
+
+        """
         self.fname: Path = Path(fname)
         if not self.fname.exists():
             with h5py.File(self.fname, 'w'):
@@ -94,6 +147,20 @@ class DnaDataset:
 
     @property
     def chromsizes(self) -> Dict[str, int]:
+        """Gets chromosome sizes from the .dnah5 file.
+
+        Returns
+        -------
+        dict
+            A dictionary of chromosome sizes in a form
+            of `{chromosome_name: chromosome_size}`.
+
+        Raises
+        ------
+        Exception
+            In case there are no chromosome sizes in the file.
+
+        """
         if self._chromsizes is None:
             try:
                 self._chromsizes = self._read_chromsizes()
@@ -103,11 +170,34 @@ class DnaDataset:
 
     @chromsizes.setter
     def chromsizes(self, chromsizes_dict: Dict[str, int]) -> None:
+        """Writes new chromosome sizes to the .dnah5 file.
+
+        Parameters
+        ----------
+        chromsizes_dict: dict
+            A dictionary of chromosome sizes in a form
+            of `{chromosome_name: chromosome_size}`.
+
+        """
         self._chromsizes = chromsizes_dict
         self._write_chromsizes()
 
     @property
     def annotation(self) -> Dict[str, GeneCoord]:
+        """Gets gene annotation from the .dnah5 file.
+
+        Returns
+        -------
+        dict
+            Dictionary in a form of `{gene_name: gene_coordinates}`,
+            that contains gene coordinates.
+
+        Raises
+        ------
+        Exception
+            In case there is no gene annotation in the file.
+
+        """
         if self._annotation is None:
             try:
                 self._annotation = self._get_annotation()
@@ -117,12 +207,50 @@ class DnaDataset:
 
     @annotation.setter
     def annotation(self, annotation_dict: Dict[str, GeneCoord]) -> None:
+        """Writes new gene annotation in the .dnah5 file.
+
+        Parameters
+        ----------
+        annotation_dict: dict
+            Dictionary in a form of `{gene_name: gene_coordinates}`,
+            that contains gene coordinates.
+        """
         self.validate_annotation(annotation_dict, self.chromsizes)
         self._annotation = annotation_dict
 
     @staticmethod
     def validate_annotation(annotation_dict: Dict[str, GeneCoord],
                             chromsizes_dict: Dict[str, int]) -> bool:
+        """Validates provided gene annotation.
+
+        Checks that for each RNA:
+        1. start does not exceed end.
+        2. chromosome name is present in chromosome sizes.
+        3. start is nonnegative.
+        4. end does not exceed the chromosome size.
+
+        Parameters
+        ----------
+        annotation_dict: dict
+            Dictionary in a form of `{gene_name: gene_coordinates}`,
+            that contains gene coordinates.
+        chromsizes_dict: dict
+            A dictionary of chromosome sizes in a form
+            of `{chromosome_name: chromosome_size}`.
+
+        Returns
+        -------
+        bool
+            True if all validatation checks are successful.
+            Otherwise, raises exceptions.
+
+        Raises
+        ------
+        Exception
+            In case one of the validation rules is broken
+            for any RNA.
+
+        """
         for _rna_name, rna_annot in annotation_dict.items():
             if rna_annot.start >= rna_annot.end:
                 raise Exception  # rna_name, start, end
@@ -138,6 +266,29 @@ class DnaDataset:
     def validate_dna_frame(dna_frame: pd.DataFrame,
                            annotation_dict: Dict[str, GeneCoord],
                            chromsizes_dict: Dict[str, int]) -> bool:
+        """"Validates a dataframe with DNA parts of contacts.
+
+        Validation checks:
+        1. The dataframe is a valid BED dataframe (according to bioframe).
+        2. For every RNA:
+            2.1. RNA name is present in the annotation dictionary.
+            2.2. Every chromosome name is present in the chromosome
+                 sizes dictionary.
+        3. For every DNA part:
+            2.1. End does not exceed the chromosome size.
+            2.2. Start is nonnegative.
+
+        Returns
+        -------
+        bool
+            True if all validatation checks are successful.
+            Otherwise, raises exceptions.
+
+        Raises
+        ------
+        Exception
+            In case one of the validation rules is broken.
+        """
         if not bf.is_bedframe(dna_frame):
             raise Exception
         for rna_name in dna_frame['name'].unique():
@@ -154,6 +305,8 @@ class DnaDataset:
         return True
 
     def _read_chromsizes(self) -> Dict[str, int]:
+        """
+        """
         if not self.fname.exists():
             raise Exception
 

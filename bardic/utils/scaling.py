@@ -11,6 +11,7 @@ from tqdm.contrib.concurrent import process_map
 
 from ..api.binops import calculate_dists_to_centers, calculate_dists_to_points
 from ..api.formats import Rdc
+from ..api.mp import adjust_chunksize
 from ..api.schemas import GeneCoord, SplineResult
 
 
@@ -39,12 +40,19 @@ def _get_cis_coverage_single(rdc_data: Rdc, rna_name: str, gene_coord: GeneCoord
     return cis_coverage
 
 
-def get_cis_coverage(rdc_data: Rdc, n_cores: int = 1) -> pd.DataFrame:
+def get_cis_coverage(rdc_data: Rdc, n_cores: int = 1, chunksize: int = 50) -> pd.DataFrame:
     annotation = rdc_data.annotation
     rna_names = list(annotation.keys())
     gene_coords = (annotation[rna_name] for rna_name in rna_names)
     func = partial(_get_cis_coverage_single, rdc_data)
-    result = process_map(func, rna_names, gene_coords, max_workers=n_cores)
+    chunksize = adjust_chunksize(len(rna_names), n_cores, chunksize)
+    result = process_map(func,
+                         rna_names,
+                         gene_coords,
+                         max_workers=n_cores,
+                         chunksize=chunksize,
+                         desc='Getting cis coverage',
+                         unit='RNA')
     return pd.concat(result, ignore_index=True)
 
 
@@ -70,15 +78,22 @@ def _get_chrom_scaling_single(chrom_name: str,
 def _get_chrom_scaling(cis_coverage: pd.DataFrame,
                        only_fittable=False,
                        degree: int = 3,
-                       n_cores: int = 1) -> Tuple[Dict[str, LinregressResult], Dict[str, SplineResult]]:
+                       n_cores: int = 1,
+                       chunksize: int = 1) -> Tuple[Dict[str, LinregressResult], Dict[str, SplineResult]]:
     if only_fittable:
         chrom_counts = cis_coverage['chrom'].value_counts()
         fittable_chroms = chrom_counts[chrom_counts > degree].index
         cis_coverage = cis_coverage.query('chrom in @fittable_chroms').reset_index(drop=True)
 
     func = partial(_get_chrom_scaling_single, degree=degree)
+    chunksize = adjust_chunksize(len(fittable_chroms), n_cores, chunksize)
 
-    results = process_map(func, *zip(*cis_coverage.groupby('chrom')), max_workers=n_cores)
+    results = process_map(func,
+                          *zip(*cis_coverage.groupby('chrom')),
+                          max_workers=n_cores,
+                          desc='Calculating chromosome-level scaling',
+                          unit='chrom',
+                          chunksize=chunksize)
     linreg_results = {item[0]: item[1][0] for item in results}
     spline_results = {item[0]: item[1][1] for item in results}
     return linreg_results, spline_results
@@ -126,9 +141,16 @@ def _get_rna_scaling(cis_coverage: pd.DataFrame,
                      degree: int = 3,
                      no_refine: bool = False,
                      max_threshold: float = 0.05,
-                     n_cores: int = 1) -> pd.DataFrame:
+                     n_cores: int = 1,
+                     chunksize: int = 50) -> pd.DataFrame:
     func = partial(_get_rna_scaling_single, degree=degree, no_refine=no_refine, max_threshold=max_threshold)
-    results = process_map(func, *zip(*cis_coverage.groupby('rna')), max_workers=n_cores)
+    chunksize = adjust_chunksize(cis_coverage['rna'].nunique(), n_cores, chunksize)
+    results = process_map(func,
+                          *zip(*cis_coverage.groupby('rna')),
+                          max_workers=n_cores,
+                          chunksize=chunksize,
+                          desc='Calculating RNA-level scaling',
+                          unit='RNA')
     return dict(results)
 
 
@@ -195,7 +217,8 @@ def _rescale_rdc_data_single(rna_name: str,
 
 def _rescale_rdc_data(rdc_data: Rdc,
                       fill_value: Union[int, float] = 1,
-                      n_cores: int = 1):
+                      n_cores: int = 1,
+                      chunksize: int = 50):
     cis_contacts_nums = rdc_data.read_rna_attribute_batch('cis_contacts')
     trans_contacts_nums = rdc_data.read_rna_attribute_batch('trans_contacts')
     annotation = rdc_data.annotation
@@ -207,7 +230,17 @@ def _rescale_rdc_data(rdc_data: Rdc,
     gene_coords = (annotation[rna_name] for rna_name in rna_names)
     n_cis_contacts_gen = (cis_contacts_nums[rna_name] for rna_name in rna_names)
     n_trans_contacts_gen = (trans_contacts_nums[rna_name] for rna_name in rna_names)
-    results = dict(process_map(func, rna_names, gene_coords, n_cis_contacts_gen, n_trans_contacts_gen, max_workers=n_cores))
+
+    chunksize = adjust_chunksize(len(rna_names), n_cores, chunksize)
+    results = dict(process_map(func,
+                               rna_names,
+                               gene_coords,
+                               n_cis_contacts_gen,
+                               n_trans_contacts_gen,
+                               max_workers=n_cores,
+                               chunksize=chunksize,
+                               desc='Rescaling rdc pixels',
+                               unit='RNA'))
     changed_cols = ['raw_bg_prob', 'bg_prob', 'signal_prob', 'scaling_factor', 'fc']
     for col in changed_cols:
         rdc_data.write_pixels_column_batch(col, results)

@@ -8,6 +8,7 @@ import statsmodels.api as sm
 from tqdm.contrib.concurrent import process_map
 
 from ..api.formats import Rdc
+from ..api.mp import adjust_chunksize
 
 
 def _calculate_pvals_single(rna_name: str, total_contacts: int, rdc_data: Rdc) -> Tuple[str, pd.DataFrame]:
@@ -17,13 +18,22 @@ def _calculate_pvals_single(rna_name: str, total_contacts: int, rdc_data: Rdc) -
     return rna_name, pixels[['chrom', 'pvalue']]
 
 
-def _calculate_pvals(rdc_data: Rdc, n_cores: int = 1) -> Dict[str, pd.DataFrame]:
+def _calculate_pvals(rdc_data: Rdc,
+                     n_cores: int = 1,
+                     chunksize: int = 50) -> Dict[str, pd.DataFrame]:
     cis_contacts_num = rdc_data.read_rna_attribute_batch('cis_contacts')
     trans_contacts_num = rdc_data.read_rna_attribute_batch('trans_contacts')
     rna_names = list(cis_contacts_num.keys())
     total_contacts_gen = (cis_contacts_num[rna_name] + trans_contacts_num[rna_name] for rna_name in rna_names)
     func = partial(_calculate_pvals_single, rdc_data=rdc_data)
-    results = dict(process_map(func, rna_names, total_contacts_gen, max_workers=n_cores))
+    chunksize = adjust_chunksize(len(rna_names), n_cores, chunksize)
+    results = dict(process_map(func,
+                               rna_names,
+                               total_contacts_gen,
+                               max_workers=n_cores,
+                               chunksize=chunksize,
+                               desc='Calculating p-values',
+                               unit='RNA'))
     return results
 
 
@@ -57,13 +67,19 @@ def _fetch_peaks_single(rna_name: str, rdc_data: Rdc, threshold: float = 0.05) -
     return peaks
 
 
-def fetch_peaks(rdc_data: Rdc, threshold: float = 0.05, n_cores: int = 1) -> pd.DataFrame:
+def fetch_peaks(rdc_data: Rdc, threshold: float = 0.05, n_cores: int = 1, chunksize: int = 50) -> pd.DataFrame:
     if not rdc_data.are_peaks_estimated:
         raise Exception
     annotation = rdc_data.annotation
     rna_names = list(annotation.keys())
     func = partial(_fetch_peaks_single, rdc_data=rdc_data, threshold=threshold)
-    results = process_map(func, rna_names, max_workers=n_cores)
+    chunksize = adjust_chunksize(len(rna_names), n_cores, chunksize)
+    results = process_map(func,
+                          rna_names,
+                          max_workers=n_cores,
+                          chunksize=chunksize,
+                          desc='Fetching peaks',
+                          unit='RNA')
     return pd.concat(results, ignore_index=True)
 
 
