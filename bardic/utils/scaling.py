@@ -15,6 +15,15 @@ from ..api.mp import adjust_chunksize
 from ..api.schemas import GeneCoord, SplineResult
 
 
+NO_LINREG_RESULT = LinregressResult(slope=np.nan,
+                                    intercept=np.nan,
+                                    rvalue=np.nan,
+                                    pvalue=np.nan,
+                                    stderr=np.nan,
+                                    intercept_stderr=np.nan)
+NO_SPLINE_RESULT = SplineResult(t=np.array([]), c=np.array([]), k=np.nan)
+
+
 def _get_cis_coverage_single(rdc_data: Rdc, rna_name: str, gene_coord: GeneCoord) -> pd.DataFrame:
     cis_coverage = rdc_data.read_pixels(rna_name,
                                         value_fields=['signal_count',
@@ -43,17 +52,23 @@ def _get_cis_coverage_single(rdc_data: Rdc, rna_name: str, gene_coord: GeneCoord
 def get_cis_coverage(rdc_data: Rdc, n_cores: int = 1, chunksize: int = 50) -> pd.DataFrame:
     annotation = rdc_data.annotation
     rna_names = list(annotation.keys())
-    gene_coords = (annotation[rna_name] for rna_name in rna_names)
+    gene_coords = [annotation[rna_name] for rna_name in rna_names]
+    all_chroms = list({item.chrom for item in gene_coords})
+
     func = partial(_get_cis_coverage_single, rdc_data)
     chunksize = adjust_chunksize(len(rna_names), n_cores, chunksize)
-    result = process_map(func,
-                         rna_names,
-                         gene_coords,
-                         max_workers=n_cores,
-                         chunksize=chunksize,
-                         desc='Getting cis coverage',
-                         unit='RNA')
-    return pd.concat(result, ignore_index=True)
+    cis_results = process_map(func,
+                              rna_names,
+                              gene_coords,
+                              max_workers=n_cores,
+                              chunksize=chunksize,
+                              desc='Getting cis coverage',
+                              unit='RNA')
+
+    cis_coverage = pd.concat(cis_results, ignore_index=True)
+    cis_coverage['chrom'] = cis_coverage['chrom'].astype(pd.CategoricalDtype(all_chroms))
+    cis_coverage['rna'] = cis_coverage['rna'].astype(pd.CategoricalDtype(rna_names))
+    return cis_coverage
 
 
 def _get_chrom_scaling_single(chrom_name: str,
@@ -62,7 +77,10 @@ def _get_chrom_scaling_single(chrom_name: str,
     chrom_data = chrom_data.sort_values('log_gene_dist', ignore_index=True)
     x = chrom_data['log_gene_dist'].values
     y = chrom_data['log_fc'].values
-    linreg_results: LinregressResult = ss.linregress(x, y)
+    try:
+        linreg_results: LinregressResult = ss.linregress(x, y)
+    except ValueError:
+        linreg_results = NO_LINREG_RESULT
 
     if len(chrom_data) > degree:
         spl = si.splrep(x,
@@ -71,18 +89,19 @@ def _get_chrom_scaling_single(chrom_name: str,
                         k=degree)
         spline_results = SplineResult(t=spl[0], c=spl[1], k=spl[2])
     else:
-        spline_results = SplineResult(t=np.array([]), c=np.array([]), k=np.nan)
+        spline_results = NO_SPLINE_RESULT
     return chrom_name, (linreg_results, spline_results)
 
 
 def _get_chrom_scaling(cis_coverage: pd.DataFrame,
-                       only_fittable=False,
+                       only_fittable: bool = False,
                        degree: int = 3,
                        n_cores: int = 1,
                        chunksize: int = 1) -> Tuple[Dict[str, LinregressResult], Dict[str, SplineResult]]:
     if only_fittable:
         chrom_counts = cis_coverage['chrom'].value_counts()
         fittable_chroms = chrom_counts[chrom_counts > degree].index
+        non_fittable_chroms = chrom_counts[chrom_counts <= degree].index
         cis_coverage = cis_coverage.query('chrom in @fittable_chroms').reset_index(drop=True)
 
     func = partial(_get_chrom_scaling_single, degree=degree)
@@ -94,15 +113,22 @@ def _get_chrom_scaling(cis_coverage: pd.DataFrame,
                           desc='Calculating chromosome-level scaling',
                           unit='chrom',
                           chunksize=chunksize)
+
     linreg_results = {item[0]: item[1][0] for item in results}
+    linreg_results.update({chrom: NO_LINREG_RESULT
+                           for chrom in non_fittable_chroms})
+
     spline_results = {item[0]: item[1][1] for item in results}
+    spline_results.update({chrom: NO_SPLINE_RESULT
+                           for chrom in non_fittable_chroms})
+
     return linreg_results, spline_results
 
 
 def _get_rna_scaling_single(rna_name: str,
                             rna_data: pd.DataFrame,
                             degree: int = 3,
-                            no_refine: int = False,
+                            no_refine: bool = False,
                             max_threshold: float = 0.05) -> Tuple[str, Optional[SplineResult]]:
     rna_data = rna_data.sort_values('log_gene_dist', ignore_index=True)
     x = rna_data['log_gene_dist'].values

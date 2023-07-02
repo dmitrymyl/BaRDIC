@@ -103,6 +103,10 @@ def optimize_cost_function(contacts_df: pd.DataFrame,
             deq.append(cur_cost_value)
             cur_mean_cost = prev_mean_cost + 1 / w * (cur_cost_value - left_cost_value)
             diff = cur_mean_cost - prev_mean_cost
+            if prev_mean_cost == 0:
+                prev_bin_size = cur_bin_size
+                prev_mean_cost = cur_mean_cost
+                continue
             abs_relative_diff = abs(diff / prev_mean_cost)
         if diff > 0:
             return prev_bin_size, 'rising'
