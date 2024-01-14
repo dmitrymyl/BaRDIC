@@ -19,7 +19,8 @@ def numeric(value: str) -> Union[int, float]:
 
 bardic_parser = argparse.ArgumentParser(prog='bardic',
                                         description='Binomial RNA-DNA interaction caller.',
-                                        formatter_class=CustomFormatter)
+                                        formatter_class=CustomFormatter,
+                                        from_file_prefix_chars='@')
 bardic_subparsers = bardic_parser.add_subparsers(title='Subcommands',
                                                  metavar='SUBCOMMAND',
                                                  required=True)

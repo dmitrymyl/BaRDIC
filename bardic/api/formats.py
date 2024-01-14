@@ -449,6 +449,9 @@ class DnaDataset:
 
 
 class Rdc:
+    """
+    # add docstring in numpydoc style
+    """
     pixels_cols = {'start': 'int64',
                    'end': 'int64',
                    'signal_count': 'int64',
@@ -741,7 +744,17 @@ class Rdc:
         return annotation_dict
 
     @property
-    def annotation(self):
+    def annotation(self) -> Dict[str, GeneCoord]:
+        """
+        Returns a dictionary of gene coordinates for the current sequence.
+
+        If the annotation has not been loaded yet, it will be loaded from the appropriate file.
+
+        Returns
+        -------
+        Dict[str, GeneCoord]
+            A dictionary of gene coordinates for the current sequence.
+        """
         if self._annotation is None:
             self._annotation = self._get_annotation()
         return self._annotation
