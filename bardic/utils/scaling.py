@@ -297,5 +297,6 @@ def calculate_scaling_splines(rdc_data: Rdc,
         annotation = rdc_data.annotation
         refined_rna_splines = _refine_rna_splines(rna_spline_scaling, chrom_spline_scaling, annotation)
         rdc_data.write_scaling_batch(refined_rna_splines)
+
     rdc_data.is_scaling_fitted = True
     _rescale_rdc_data(rdc_data, fill_value, n_cores)

@@ -212,6 +212,9 @@ scaling_params_group.add_argument('-mt', '--max_threshold',
                                   nargs='?',
                                   default=0.05,
                                   help='Maximal binomial test p-value to consider a point as an outlier in a spline refinement procedure.')
+scaling_params_group.add_argument('-ns', '--no_scaling',
+                                  action='store_true',
+                                  help='If included, do not estimate scaling.')
 scaling_params_group.add_argument('-nr', '--no_refine',
                                   action='store_true',
                                   help='If included, do not apply a spline refinement procedure.')
@@ -437,6 +440,9 @@ run_scaling_group.add_argument('-mt', '--max_threshold',
                                nargs='?',
                                default=0.05,
                                help='Maximal binomial test p-value to consider a point as an outlier in a spline refinement procedure.')
+run_scaling_group.add_argument('-ns', '--no_scaling',
+                               action='store_true',
+                               help='If included, do not estimate scaling.')
 run_scaling_group.add_argument('-nr', '--no_refine',
                                action='store_true',
                                help='If included, do not apply a spline refinement procedure.')
