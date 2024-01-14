@@ -39,6 +39,8 @@
 
 ## rdc
 
+Versions 1 and 1.1 are readable, but only version 1.1 is operational. Please migrate your rdc's to version 1.1.
+
 `rdc` layout:
 
 ```
@@ -65,7 +67,9 @@
             - signal_prob | float64
             - fc | float64
             - pvalue | float64
-            - qvalue | float64
+            - qvalue | float64 | in v1
+            - qvalue_global | float 64 | in v1.1
+            - qvalue_rna | float64 | in v1.1
 ```
 
 `rdc` attributes:
@@ -73,7 +77,7 @@
 |-|:-:|-|
 |is_scaling_fitted|bool|Whether scaling is estimated and RNAs background levels of interactions are rescaled|
 |are_peaks_estimated|bool|Whether p-values and q-values for peaks are estimated|
-|version|str|rdc schema version. Currently, only `"1"` is available|
+|version|str|rdc schema version. Currently `"1"` and `"1.1"` are supported|
 
 
 `rnaN` attributes:

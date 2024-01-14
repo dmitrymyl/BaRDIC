@@ -6,6 +6,9 @@ from .commands import (background_cli, bed2h5_cli, binsizes_cli, makerdc_cli,
 
 
 class CustomFormatter(argparse.ArgumentDefaultsHelpFormatter, argparse.MetavarTypeHelpFormatter):
+    def __init__(self, prog) -> None:
+        super().__init__(prog, width=80)
+
     def _get_default_metavar_for_positional(self, action):
         return action.dest
 

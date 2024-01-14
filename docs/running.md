@@ -44,12 +44,12 @@ The command `bardic run` will run the whole pipeline, while other commands launc
 `bardic run` requires all input files as specified above. Additionally, algorithm can be tuned with a diverse set of parameters:
 
 ```{bash}
-usage: bardic run [-h] [-f [{narrowPeak,bed}]] [-s [score_field]]
-                  [-mcon [int]] [-tmin [int]] [-tmax [int]] [-tstep [int]]
-                  [-cmin [float]] [-cmax [float]] [-cstep [float]]
-                  [-cstart [int]] [-tol [float]] [-w [float]] [-bs [int]]
-                  [-bt [{rnas,custom}]] [-i [float]] [-d [int]] [-mt [float]]
-                  [-nr] [-fv [numeric]] [-q [float]] [-c [int]]
+usage: bardic run [-h] [-f [{narrowPeak,bed}]] [-s [score_field]] [-mcon [int]]
+                  [-tmin [int]] [-tmax [int]] [-tstep [int]] [-cmin [float]]
+                  [-cmax [float]] [-cstep [float]] [-cstart [int]]
+                  [-tol [float]] [-w [float]] [-bs [int]] [-bt [{rnas,custom}]]
+                  [-i [float]] [-d [int]] [-mt [float]] [-ns] [-nr]
+                  [-fv [numeric]] [-q [float]] [-qt [{global,rna}]] [-c [int]]
                   dnaparts annotation chromsizes bgdata outdir
 
 Run pipeline with a single command.
@@ -62,12 +62,12 @@ Input:
                         corresponding RNAs are in the "name" column.
   annotation            RNA annotation in BED format.
   chromsizes            If filename, then it is a UCSC headerless chromsizes
-                        file; if genome abbreviation, then will fetch
-                        chromsizes from UCSC
-  bgdata                A file with data on background. If --bgtype="rnas",
-                        this is a file with a list of RNAs with one RNA name
-                        per line. If --bgtype="custom", this is a bedGraph
-                        file with background signal in equally-sized bins.
+                        file; if genome abbreviation, then will fetch chromsizes
+                        from UCSC
+  bgdata                A file with data on background. If --bgtype="rnas", this
+                        is a file with a list of RNAs with one RNA name per
+                        line. If --bgtype="custom", this is a bedGraph file with
+                        background signal in equally-sized bins.
 
 Output:
   outdir                Output directory name.
@@ -78,8 +78,8 @@ Output:
                         with. If int, will fill every peak score with it; if
                         str, will take corresponding values from the column in
                         RDC (choices: bg_count, raw_bg_prob, scaling_factor,
-                        bg_prob, signal_count, signal_prob, impute, fc,
-                        pvalue, qvalue) (default: 0)
+                        bg_prob, signal_count, signal_prob, impute, fc, pvalue,
+                        qvalue) (default: 0)
 
 Binsize selection parameters:
   -mcon [int], --min_contacts [int]
@@ -101,9 +101,9 @@ Binsize selection parameters:
   -cstart [int], --cis_start [int]
                         Starting cis bin size. (default: 5000)
   -tol [float], --tolerance [float]
-                        Maximal absolute difference between two consecutive
-                        cost function values to consider optimization
-                        converged. (default: 0.01)
+                        Maximal absolute difference between two consecutive cost
+                        function values to consider optimization converged.
+                        (default: 0.01)
   -w [float], --window [float]
                         Window size to average cost function values over.
                         (default: 1)
@@ -114,13 +114,13 @@ Background parameters:
   -bt [{rnas,custom}], --bgtype [{rnas,custom}]
                         Type of backround. If "rnas", then will calculate
                         background from trans-contacts of RNAs supplied as
-                        "bgdata". If "custom", will use bedgraph track
-                        provided as "bgdata". (default: rnas)
+                        "bgdata". If "custom", will use bedgraph track provided
+                        as "bgdata". (default: rnas)
 
 RDC creation parameters:
   -i [float], --ifactor [float]
-                        Imputation factor: if background coverage of a bin is
-                        0, this value is a multiplier of an average background
+                        Imputation factor: if background coverage of a bin is 0,
+                        this value is a multiplier of an average background
                         coverage to impute zero background coverage. (default:
                         0.01)
 
@@ -128,11 +128,12 @@ Scaling parameters:
   -d [int], --degree [int]
                         Spline degree. (default: 3)
   -mt [float], --max_threshold [float]
-                        Maximal binomial test p-value to consider a point as
-                        an outlier in a spline refinement procedure. (default:
+                        Maximal binomial test p-value to consider a point as an
+                        outlier in a spline refinement procedure. (default:
                         0.05)
-  -nr, --no_refine      If included, do not apply a spline refinement
-                        procedure. (default: False)
+  -ns, --no_scaling     If included, do not estimate scaling. (default: False)
+  -nr, --no_refine      If included, do not apply a spline refinement procedure.
+                        (default: False)
   -fv [numeric], --fill_value [numeric]
                         Fold-change fill ratio in case of 0/0. (default: 1)
 
@@ -140,6 +141,11 @@ Peaks parameters:
   -q [float], --qval_threshold [float]
                         BH q-value threshold to consider bin a peak. (default:
                         0.05)
+  -qt [{global,rna}], --qval_type [{global,rna}]
+                        BH q-value type to use for peak calling. If "global"
+                        (default), will use q-values calculated for all RNAs; if
+                        "rna", will use q-values calculated for each RNA
+                        separately. (default: global)
 
 Processing:
   -c [int], --cores [int]
