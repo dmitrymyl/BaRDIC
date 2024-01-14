@@ -152,6 +152,27 @@ Processing:
                         Maximal number of cores to use. (default: 1)
 ```
 
+Arguments can be specified in the command line or in a separate config file that supplied like this:
+
+```{bash}
+bardic run @config.txt
+```
+
+The contents of `@config.txt` should look like this:
+```
+dnaparts
+annotation
+chromsizes
+bgdata
+outdir
+-f
+bed
+-c
+2
+--no_scaling
+```
+In other words, the name of a CLI argument and its value are on different lines. Please note there is no line break at the end of the config file.
+
 The output of `bardic run` will be put into a single directory. It consists of several files:
 
 |File name|Description|File type|
