@@ -91,6 +91,7 @@ def scaling_cli(rdc: str,
 
 def peaks_cli(rdc: str,
               qval_threshold: float,
+              qval_type: 'str',
               output: str,
               format: str,
               score: Union[str, int],
@@ -98,7 +99,7 @@ def peaks_cli(rdc: str,
     rdc_data = Rdc(rdc)
     if not rdc_data.are_peaks_estimated:
         estimate_significance(rdc_data, n_cores)
-    peaks = fetch_peaks(rdc_data, qval_threshold, n_cores)
+    peaks = fetch_peaks(rdc_data, qval_threshold, qval_type, n_cores)
     peaks = format_peaks(peaks, format, score)
     peaks.to_csv(output, header=False, index=False, sep='\t')
 
@@ -126,6 +127,7 @@ def run_pipeline_cli(dnaparts: str,
                      no_refine: bool = False,
                      fill_value: Union[int, float] = 1,
                      qval_threshold: float = 0.05,
+                     qval_type: str = 'global',
                      format: str = "narrowPeak",
                      score: Union[str, int] = 0,
                      bg_type: str = "rnas"):
@@ -177,7 +179,8 @@ def run_pipeline_cli(dnaparts: str,
                                      max_threshold=max_threshold,
                                      no_refine=no_refine,
                                      fill_value=fill_value),
-                 peaks_threshold=qval_threshold,
+                 qval_threshold=qval_threshold,
+                 qval_type=qval_type,
                  peaks_format_params=dict(format=format, score=score),
                  peaks_output=peaks_output,
                  n_cores=n_cores,

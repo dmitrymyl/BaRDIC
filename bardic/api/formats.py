@@ -46,6 +46,9 @@ class StatusProperty:
 
 class VersionProperty:
 
+    def __init__(self, supported_versions: tuple) -> None:
+        self.supported_versions = supported_versions
+
     def __set_name__(self, owner, name: str) -> None:
         self.private_name = '_' + name
         self.public_name = name
@@ -55,14 +58,14 @@ class VersionProperty:
         if value is None:
             with h5py.File(obj.fname, 'r') as f:
                 value = f.attrs[self.public_name]
-                if value in ("1", ):
+                if value in self.supported_versions:
                     setattr(obj, self.private_name, value)
                 else:
                     raise Exception
         return value
 
     def __set__(self, obj, value: bool) -> None:
-        if value not in ("1", ):
+        if value not in self.supported_versions:
             raise ValueError
         with h5py.File(obj.fname, 'a') as f:
             f.attrs[self.public_name] = value
@@ -96,11 +99,12 @@ class DnaDataset:
     version: str
         Version of .dnah5 schema.
     """
+    supported_versions = ("1", )
     chrom_groupname: str = "chrom_sizes"
     dna_groupname: str = "dna_parts"
 
     are_binsizes_selected = StatusProperty()
-    version = VersionProperty()
+    version = VersionProperty(supported_versions)
 
     def __init__(self,
                  fname: str,
@@ -452,18 +456,45 @@ class Rdc:
     """
     # add docstring in numpydoc style
     """
-    pixels_cols = {'start': 'int64',
-                   'end': 'int64',
-                   'signal_count': 'int64',
-                   'signal_prob': 'float',
-                   'impute': 'bool',
-                   'bg_count': 'float',
-                   'bg_prob': 'float',
-                   'raw_bg_prob': 'float',
-                   'scaling_factor': 'float',
-                   'fc': 'float',
-                   'pvalue': 'float',
-                   'qvalue': 'float'}
+    supported_versions = ("1", "1.1")  # version 1 is deprecated and will be removed in the future.
+
+    pixels_cols_by_version = {'1': {'start': 'int64',
+                                    'end': 'int64',
+                                    'signal_count': 'int64',
+                                    'signal_prob': 'float',
+                                    'impute': 'bool',
+                                    'bg_count': 'float',
+                                    'bg_prob': 'float',
+                                    'raw_bg_prob': 'float',
+                                    'scaling_factor': 'float',
+                                    'fc': 'float',
+                                    'pvalue': 'float',
+                                    'qvalue': 'float'},
+                              '1.1': {'start': 'int64',
+                                      'end': 'int64',
+                                      'signal_count': 'int64',
+                                      'signal_prob': 'float',
+                                      'impute': 'bool',
+                                      'bg_count': 'float',
+                                      'bg_prob': 'float',
+                                      'raw_bg_prob': 'float',
+                                      'scaling_factor': 'float',
+                                      'fc': 'float',
+                                      'pvalue': 'float',
+                                      'qvalue_global': 'float',
+                                      'qvalue_rna': 'float'}}
+    # pixels_cols = {'start': 'int64',
+    #                'end': 'int64',
+    #                'signal_count': 'int64',
+    #                'signal_prob': 'float',
+    #                'impute': 'bool',
+    #                'bg_count': 'float',
+    #                'bg_prob': 'float',
+    #                'raw_bg_prob': 'float',
+    #                'scaling_factor': 'float',
+    #                'fc': 'float',
+    #                'pvalue': 'float',
+    #                'qvalue': 'float'}
 
     chrom_groupname: str = "chrom_sizes"
     bg_groupname: str = "background"
@@ -471,7 +502,7 @@ class Rdc:
 
     is_scaling_fitted = StatusProperty()
     are_peaks_estimated = StatusProperty()
-    version = VersionProperty()
+    version = VersionProperty(supported_versions)
 
     def __init__(self,
                  fname: str,
@@ -482,7 +513,7 @@ class Rdc:
                 pass
             self.is_scaling_fitted = False
             self.are_peaks_estimated = False
-            self.version = "1"
+            self.version = "1.1"  # we write the newest version
 
         self._chromsizes: Optional[Dict[str, int]] = chromsizes
         if chromsizes is not None:
@@ -491,9 +522,12 @@ class Rdc:
         self._annotation: Optional[Dict[str, GeneCoord]] = None
         self._is_scaling_fitted: Optional[bool] = None
         self._are_peaks_estimated: Optional[bool] = None
+
         self._version: Optional[str] = None
-        if self.version != "1":
-            raise Exception
+        if self.version not in self.supported_versions:
+            raise Exception(f"The RDC file version {self.version} is not supported.")
+
+        self.pixels_cols = self.pixels_cols_by_version[self.version]
 
     @property
     def chromsizes(self) -> Dict[str, int]:

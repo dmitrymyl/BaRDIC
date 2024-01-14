@@ -21,7 +21,8 @@ def run_pipeline(dna_parts_fname: str,
                  bg_fname: str,
                  rna_list: List,
                  bg_binsize: int,
-                 peaks_threshold: float,
+                 qval_threshold: float,
+                 qval_type: str,
                  peaks_output: str,
                  binsize_params: Dict = {},
                  rdc_params: Dict = {},
@@ -48,6 +49,6 @@ def run_pipeline(dna_parts_fname: str,
     calculate_scaling_splines(rdc_data, n_cores=n_cores, **scaling_params)
 
     estimate_significance(rdc_data, n_cores)
-    peaks = fetch_peaks(rdc_data, peaks_threshold, n_cores)
+    peaks = fetch_peaks(rdc_data, qval_threshold, qval_type, n_cores)
     formatted_peaks = format_peaks(peaks, **peaks_format_params)
     formatted_peaks.to_csv(peaks_output, sep='\t', header=False, index=False)

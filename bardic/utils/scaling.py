@@ -203,7 +203,7 @@ def _rescale_rdc_data_single(rna_name: str,
     single_spline = tuple(rdc_data.read_scaling(rna_name))
     gene_start = gene_coord.start
     gene_end = gene_coord.end
-    if not isnan(single_spline[2]):
+    if not isnan(single_spline[2]):  # i.e. when scaling spline is not empty
         spl = single_spline
         rel_cis_bin_centers = calculate_dists_to_centers(cis_pixels, gene_start, gene_end)
         rel_cis_bin_starts = calculate_dists_to_points(cis_pixels['start'], gene_start, gene_end)
@@ -212,7 +212,7 @@ def _rescale_rdc_data_single(rna_name: str,
                                  + si.splev(np.log10(rel_cis_bin_ends + 1), spl, ext=3)
                                  + si.splev(np.log10(rel_cis_bin_centers + 1), spl, ext=3)) / 3)
         cis_pixels['scaling_factor'] = scaling_factors
-    else:
+    else:  # i.e. when scaling spline is empty
         cis_pixels['scaling_factor'] = 1
 
     trans_pixels['scaling_factor'] = 1
@@ -277,19 +277,25 @@ def calculate_scaling_splines(rdc_data: Rdc,
                               no_refine: bool = False,
                               max_threshold: float = 0.05,
                               fill_value: Union[int, float] = 1,
+                              no_scaling: bool = False,
                               n_cores: int = 1) -> None:
-    cis_coverage = get_cis_coverage(rdc_data)
-    _, chrom_spline_scaling = _get_chrom_scaling(cis_coverage,
-                                                 only_fittable=True,
-                                                 degree=degree,
-                                                 n_cores=n_cores)
-    rna_spline_scaling = _get_rna_scaling(cis_coverage,
-                                          degree=degree,
-                                          no_refine=no_refine,
-                                          max_threshold=max_threshold,
-                                          n_cores=n_cores)
-    annotation = rdc_data.annotation
-    refined_rna_splines = _refine_rna_splines(rna_spline_scaling, chrom_spline_scaling, annotation)
-    rdc_data.write_scaling_batch(refined_rna_splines)
+    if no_scaling:
+        rna_names = rdc_data.annotation.keys()
+        for rna_name in rna_names:
+            rdc_data.write_scaling_batch({rna_name: NO_SPLINE_RESULT})
+    else:
+        cis_coverage = get_cis_coverage(rdc_data)
+        _, chrom_spline_scaling = _get_chrom_scaling(cis_coverage,
+                                                     only_fittable=True,
+                                                     degree=degree,
+                                                     n_cores=n_cores)
+        rna_spline_scaling = _get_rna_scaling(cis_coverage,
+                                              degree=degree,
+                                              no_refine=no_refine,
+                                              max_threshold=max_threshold,
+                                              n_cores=n_cores)
+        annotation = rdc_data.annotation
+        refined_rna_splines = _refine_rna_splines(rna_spline_scaling, chrom_spline_scaling, annotation)
+        rdc_data.write_scaling_batch(refined_rna_splines)
     rdc_data.is_scaling_fitted = True
     _rescale_rdc_data(rdc_data, fill_value, n_cores)

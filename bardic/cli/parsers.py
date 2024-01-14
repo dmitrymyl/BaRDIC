@@ -20,7 +20,7 @@ def numeric(value: str) -> Union[int, float]:
 bardic_parser = argparse.ArgumentParser(prog='bardic',
                                         description='Binomial RNA-DNA interaction caller.',
                                         formatter_class=CustomFormatter,
-                                        from_file_prefix_chars='@')
+                                        fromfile_prefix_chars='@')
 bardic_subparsers = bardic_parser.add_subparsers(title='Subcommands',
                                                  metavar='SUBCOMMAND',
                                                  required=True)
@@ -270,6 +270,15 @@ peaks_params_group.add_argument('-q', '--qval_threshold',
                                 default=0.05,
                                 help='BH q-value threshold to consider bin a peak.')
 
+peaks_params_group.add_argument('-qt', '--qval_type',
+                                type=str,
+                                nargs='?',
+                                choices=['global', 'rna'],
+                                default='global',
+                                help='BH q-value type to use for peak calling. '
+                                     'If "global" (default), will use q-values calculated for all RNAs; '
+                                     'if "rna", will use q-values calculated for each RNA separately.')
+
 peaks_output_group = peaks_parser.add_argument_group('Output')
 peaks_output_group.add_argument('output',
                                 type=str,
@@ -443,6 +452,14 @@ run_peaks_group.add_argument('-q', '--qval_threshold',
                              nargs='?',
                              default=0.05,
                              help='BH q-value threshold to consider bin a peak.')
+run_peaks_group.add_argument('-qt', '--qval_type',
+                             type=str,
+                             nargs='?',
+                             choices=['global', 'rna'],
+                             default='global',
+                             help='BH q-value type to use for peak calling. '
+                                  'If "global" (default), will use q-values calculated for all RNAs; '
+                                  'if "rna", will use q-values calculated for each RNA separately.')
 
 run_processing_group = run_pipeline_parser.add_argument_group('Processing')
 run_processing_group.add_argument('-c', '--cores',

@@ -44,35 +44,44 @@ def estimate_significance(rdc_data: Rdc, n_cores: int = 1) -> None:
     for rna_name, rna_stats in total_stats.items():
         pvals = rna_stats.dropna().reset_index(drop=True)['pvalue']
         rna_df = pd.DataFrame({'rna_name': rna_name, 'pvalue': pvals})
+        _, qvals_rna, *_ = sm.stats.multipletests(rna_df['pvalue'].values, method='fdr_bh')
+        rna_df['qvalue_rna'] = qvals_rna
         rna_dfs_handler.append(rna_df)
     meaningful_pvals = pd.concat(rna_dfs_handler, ignore_index=True)
 
     _, qvals, *_ = sm.stats.multipletests(meaningful_pvals['pvalue'].values, method='fdr_bh')
 
-    meaningful_pvals['qvalue'] = qvals
+    meaningful_pvals['qvalue_global'] = qvals
 
     for rna_name, rna_df in meaningful_pvals.groupby('rna_name'):
         rna_stats = total_stats[rna_name]
-        rna_stats.loc[~rna_stats['pvalue'].isna(), 'qvalue'] = rna_df['qvalue'].values
+        rna_stats.loc[~rna_stats['pvalue'].isna(), 'qvalue_global'] = rna_df['qvalue_global'].values
+        rna_stats.loc[~rna_stats['pvalue'].isna(), 'qvalue_rna'] = rna_df['qvalue_rna'].values
 
     rdc_data.write_pixels_column_batch('pvalue', total_stats)
-    rdc_data.write_pixels_column_batch('qvalue', total_stats)
+    rdc_data.write_pixels_column_batch('qvalue_global', total_stats)
+    rdc_data.write_pixels_column_batch('qvalue_rna', total_stats)
     rdc_data.are_peaks_estimated = True
 
 
-def _fetch_peaks_single(rna_name: str, rdc_data: Rdc, threshold: float = 0.05) -> pd.DataFrame:
+def _fetch_peaks_single(rna_name: str, rdc_data: Rdc, threshold: float = 0.05, qvalue_type='global') -> pd.DataFrame:
     pixels = rdc_data.read_pixels(rna_name)
-    peaks = pixels.query('qvalue < @threshold').reset_index(drop=True)
+    if qvalue_type not in ['global', 'rna']:
+        raise ValueError
+    qvalue_col = f'qvalue_{qvalue_type}'
+    peaks = pixels.query(f'{qvalue_col} < {threshold}').reset_index(drop=True).rename(columns={qvalue_col: 'qvalue'})
     peaks['rna_name'] = rna_name
     return peaks
 
 
-def fetch_peaks(rdc_data: Rdc, threshold: float = 0.05, n_cores: int = 1, chunksize: int = 50) -> pd.DataFrame:
+def fetch_peaks(rdc_data: Rdc, threshold: float = 0.05, qvalue_type='global', n_cores: int = 1, chunksize: int = 50) -> pd.DataFrame:
     if not rdc_data.are_peaks_estimated:
         raise Exception
+    if qvalue_type not in ('global', 'rna'):
+        raise ValueError
     annotation = rdc_data.annotation
     rna_names = list(annotation.keys())
-    func = partial(_fetch_peaks_single, rdc_data=rdc_data, threshold=threshold)
+    func = partial(_fetch_peaks_single, rdc_data=rdc_data, threshold=threshold, qvalue_type=qvalue_type)
     chunksize = adjust_chunksize(len(rna_names), n_cores, chunksize)
     results = process_map(func,
                           rna_names,
