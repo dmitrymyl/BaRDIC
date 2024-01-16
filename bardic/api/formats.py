@@ -268,27 +268,34 @@ class DnaDataset:
 
     Parameters
     ----------
-    fname
+    fname : str
         Filename of the corresponding .dnah5 file.
         If the file doesn't exist, it will be created.
-    chromsizes
-        Dictionary in a form of `{chromosome_name: chromosome_size}`,
+    chromsizes : Optional[Dict[str, int]], default None
+        Dictionary in the form of `{chromosome_name: chromosome_size}`,
         that contains chromosome sizes.
-    annotation
-        Dictionary in a form of `{gene_name: gene_coordinates}`,
+    annotation : Optional[Dict[str, GeneCoord]], default None
+        Dictionary in the form of `{gene_name: gene_coordinates}`,
         that contains gene coordinates.
 
     Attributes
     ----------
-    chrom_groupname: str
+    chrom_groupname : str
         Name of the chromosome sizes group in the .dnah5 file.
-    dna_groupname: str
+    dna_groupname : str
         Name of the dna parts group in the .dnah5 file.
-    are_binsizes_selected: bool
+    are_binsizes_selected : bool
         Indicates whether bin sizes were selected.
-    version: str
+    version : str
         Version of .dnah5 schema.
+
+    Raises
+    ------
+    ValueError
+        If the version of the existing .dnah5 file is not `"1"`.
+
     """
+
     supported_versions = ("1", )
     chrom_groupname: str = "chrom_sizes"
     dna_groupname: str = "dna_parts"
@@ -300,24 +307,25 @@ class DnaDataset:
                  fname: str,
                  chromsizes: Optional[Dict[str, int]] = None,
                  annotation: Optional[Dict[str, GeneCoord]] = None) -> None:
-        """Constructor
+        """
+        Constructor
 
         Parameters
         ----------
-        fname
+        fname : str
             Filename of the corresponding .dnah5 file.
             If the file doesn't exist, it will be created.
-        chromsizes
-            Dictionary in a form of `{chromosome_name: chromosome_size}`,
+        chromsizes : Optional[Dict[str, int]], default None
+            Dictionary in the form of `{chromosome_name: chromosome_size}`,
             that contains chromosome sizes.
-        annotation
-            Dictionary in a form of `{gene_name: gene_coordinates}`,
+        annotation : Optional[Dict[str, GeneCoord]], default None
+            Dictionary in the form of `{gene_name: gene_coordinates}`,
             that contains gene coordinates.
 
         Raises
         ------
         ValueError
-            In case the version of the existing .dnah5 file is not `"1"`.
+            If the version of the existing .dnah5 file is not `"1"`.
 
         """
         self.fname: Path = Path(fname)
@@ -341,18 +349,19 @@ class DnaDataset:
 
     @property
     def chromsizes(self) -> Dict[str, int]:
-        """Gets chromosome sizes from the .dnah5 file.
+        """
+        Gets chromosome sizes from the .dnah5 file.
 
         Returns
         -------
         dict
-            A dictionary of chromosome sizes in a form
+            A dictionary of chromosome sizes in the form
             of `{chromosome_name: chromosome_size}`.
 
         Raises
         ------
         Exception
-            In case there are no chromosome sizes in the file.
+            If there are no chromosome sizes in the file.
 
         """
         if self._chromsizes is None:
@@ -364,12 +373,13 @@ class DnaDataset:
 
     @chromsizes.setter
     def chromsizes(self, chromsizes_dict: Dict[str, int]) -> None:
-        """Writes new chromosome sizes to the .dnah5 file.
+        """
+        Writes new chromosome sizes to the .dnah5 file.
 
         Parameters
         ----------
-        chromsizes_dict: dict
-            A dictionary of chromosome sizes in a form
+        chromsizes_dict : dict
+            A dictionary of chromosome sizes in the form
             of `{chromosome_name: chromosome_size}`.
 
         """
@@ -378,18 +388,19 @@ class DnaDataset:
 
     @property
     def annotation(self) -> Dict[str, GeneCoord]:
-        """Gets gene annotation from the .dnah5 file.
+        """
+        Gets gene annotation from the .dnah5 file.
 
         Returns
         -------
         dict
-            Dictionary in a form of `{gene_name: gene_coordinates}`,
+            Dictionary in the form of `{gene_name: gene_coordinates}`,
             that contains gene coordinates.
 
         Raises
         ------
         Exception
-            In case there is no gene annotation in the file.
+            If there is no gene annotation in the file.
 
         """
         if self._annotation is None:
@@ -401,12 +412,13 @@ class DnaDataset:
 
     @annotation.setter
     def annotation(self, annotation_dict: Dict[str, GeneCoord]) -> None:
-        """Writes new gene annotation in the .dnah5 file.
+        """
+        Writes new gene annotation in the .dnah5 file.
 
         Parameters
         ----------
-        annotation_dict: dict
-            Dictionary in a form of `{gene_name: gene_coordinates}`,
+        annotation_dict : dict
+            Dictionary in the form of `{gene_name: gene_coordinates}`,
             that contains gene coordinates.
         """
         self.validate_annotation(annotation_dict, self.chromsizes)
@@ -415,7 +427,8 @@ class DnaDataset:
     @staticmethod
     def validate_annotation(annotation_dict: Dict[str, GeneCoord],
                             chromsizes_dict: Dict[str, int]) -> bool:
-        """Validates provided gene annotation.
+        """
+        Validates provided gene annotation.
 
         Checks that for each RNA:
         1. start does not exceed end.
@@ -425,23 +438,23 @@ class DnaDataset:
 
         Parameters
         ----------
-        annotation_dict: dict
-            Dictionary in a form of `{gene_name: gene_coordinates}`,
+        annotation_dict : dict
+            Dictionary in the form of `{gene_name: gene_coordinates}`,
             that contains gene coordinates.
-        chromsizes_dict: dict
-            A dictionary of chromosome sizes in a form
+        chromsizes_dict : dict
+            A dictionary of chromosome sizes in the form
             of `{chromosome_name: chromosome_size}`.
 
         Returns
         -------
         bool
-            True if all validatation checks are successful.
+            True if all validation checks are successful.
             Otherwise, raises exceptions.
 
         Raises
         ------
         Exception
-            In case one of the validation rules is broken
+            If one of the validation rules is broken
             for any RNA.
 
         """
@@ -460,7 +473,8 @@ class DnaDataset:
     def validate_dna_frame(dna_frame: pd.DataFrame,
                            annotation_dict: Dict[str, GeneCoord],
                            chromsizes_dict: Dict[str, int]) -> bool:
-        """"Validates a dataframe with DNA parts of contacts.
+        """
+        Validates a dataframe with DNA parts of contacts.
 
         Validation checks:
         1. The dataframe is a valid BED dataframe (according to bioframe).
@@ -475,13 +489,13 @@ class DnaDataset:
         Returns
         -------
         bool
-            True if all validatation checks are successful.
+            True if all validation checks are successful.
             Otherwise, raises exceptions.
 
         Raises
         ------
         Exception
-            In case one of the validation rules is broken.
+            If one of the validation rules is broken.
         """
         if not bf.is_bedframe(dna_frame):
             raise Exception
@@ -500,6 +514,17 @@ class DnaDataset:
 
     def _read_chromsizes(self) -> Dict[str, int]:
         """
+        Read chromosome sizes from the file.
+
+        Returns
+        -------
+        Dict[str, int]
+            A dictionary mapping chromosome names to their corresponding sizes.
+
+        Raises
+        ------
+        Exception
+            If the file does not exist, or if the required groups and datasets are not found.
         """
         if not self.fname.exists():
             raise Exception
@@ -518,6 +543,15 @@ class DnaDataset:
         return dict(zip(names, sizes))
 
     def _write_chromsizes(self) -> None:
+        """
+        Write chromosome sizes to an HDF5 file.
+
+        This method creates a group in the HDF5 file and stores the chromosome names and sizes as datasets within that group.
+
+        Returns
+        -------
+        None
+        """
         chromsizes_dict = self.chromsizes
         with h5py.File(self.fname, 'a') as f:
             names = np.array(list(chromsizes_dict.keys()), dtype='O')
@@ -529,6 +563,26 @@ class DnaDataset:
             chromsizes_group.create_dataset('size', data=sizes)
 
     def _read_dna_parts(self, f: h5py.File, rna_name: str) -> pd.DataFrame:
+        """
+        Read DNA parts from an HDF5 file.
+
+        Parameters
+        ----------
+        f : h5py.File
+            The HDF5 file object.
+        rna_name : str
+            The name of the RNA.
+
+        Returns
+        -------
+        pd.DataFrame
+            A DataFrame containing the DNA parts.
+
+        Raises
+        ------
+        Exception
+            If the DNA group or the specified RNA name is not found in the file.
+        """
         if self.dna_groupname not in f:
             raise Exception
         dna_parts_group = f[self.dna_groupname]
@@ -543,6 +597,19 @@ class DnaDataset:
         return pd.concat(dna_parts_list, ignore_index=True)
 
     def read_dna_parts(self, rna_name: str) -> pd.DataFrame:
+        """
+        Read DNA parts for a given RNA name.
+
+        Parameters
+        ----------
+        rna_name : str
+            The name of the RNA.
+
+        Returns
+        -------
+        pd.DataFrame
+            A DataFrame containing the DNA parts.
+        """
         with h5py.File(self.fname, 'r') as f:
             dna_parts = self._read_dna_parts(f, rna_name)
         return dna_parts
@@ -551,6 +618,22 @@ class DnaDataset:
                          f: h5py.File,
                          rna_name: str,
                          dna_parts: pd.DataFrame) -> None:
+        """
+        Write DNA parts of a single RNA to an HDF5 file.
+
+        Parameters
+        ----------
+        f : h5py.File
+            The HDF5 file object.
+        rna_name : str
+            The name of the RNA.
+        dna_parts : pd.DataFrame
+            The DNA parts data as a pandas DataFrame.
+
+        Returns
+        -------
+        None
+        """
         annotation_dict = self.annotation
         rna_annot = annotation_dict[rna_name]
 
@@ -576,20 +659,63 @@ class DnaDataset:
     def write_dna_parts(self,
                         rna_name: str,
                         dna_parts: pd.DataFrame) -> None:
+        """
+        Write DNA parts of a single RNA to the HDF5 file.
+
+        Parameters
+        ----------
+        rna_name : str
+            The name of the RNA.
+        dna_parts : pd.DataFrame
+            The DNA parts data.
+
+        Returns
+        -------
+        None
+        """
         with h5py.File(self.fname, 'a') as f:
             self._write_dna_parts_single(f, rna_name, dna_parts)
 
     def write_dna_parts_batch(self,
                               dna_frame: pd.DataFrame,
                               rna_col: str = 'name') -> None:
+        """
+        Write DNA parts of multiple RNAs to the HDF5 file.
+
+        Parameters
+        ----------
+        dna_frame : pd.DataFrame
+            DataFrame containing DNA parts.
+        rna_col : str, optional
+            Column name in `dna_frame` to group DNA parts by RNA name. Defaults to 'name'.
+
+        Returns
+        -------
+        None
+        """
         annotation_dict = self.annotation
-        self.validate_dna_frame(dna_frame, annotation_dict, self.chromsizes)
-        self.validate_annotation(annotation_dict, self.chromsizes)
+        self.validate_dna_frame(dna_frame, annotation_dict, self.chromsizes)  # TODO: check if validation is needed
+        self.validate_annotation(annotation_dict, self.chromsizes)  # TODO: check if validation is needed
         with h5py.File(self.fname, 'a') as f:
             for rna_name, dna_parts in dna_frame.groupby(rna_col):
                 self._write_dna_parts(f, rna_name, dna_parts)
 
     def _get_coordinates(self, f: h5py.File, rna_name: str) -> GeneCoord:
+        """
+        Get the coordinates of a gene from an HDF5 file.
+
+        Parameters
+        ----------
+        f : h5py.File
+            The HDF5 file object.
+        rna_name : str
+            The name of the gene.
+
+        Returns
+        -------
+        GeneCoord
+            The coordinates of the gene.
+        """
         if self.dna_groupname not in f:
             raise Exception
         dna_group = f[self.dna_groupname]
@@ -601,11 +727,33 @@ class DnaDataset:
                          end=rna_group.attrs['end'])
 
     def get_coordinates(self, rna_name: str) -> GeneCoord:
+        """
+        Retrieves the genomic coordinates of a given RNA.
+
+        Parameters
+        ----------
+        rna_name : str
+            The name of the RNA.
+
+        Returns
+        -------
+        GeneCoord
+            The genomic coordinates of the RNA.
+        """
         with h5py.File(self.fname, 'r') as f:
             annot = self._get_coordinates(f, rna_name)
         return annot
 
     def _get_annotation(self) -> Dict[str, GeneCoord]:
+        """
+        Retrieve the annotation information from the specified file.
+
+        Returns
+        -------
+        annotation_dict : Dict[str, GeneCoord]
+            A dictionary containing the annotation information.
+            The keys are RNA names and the values are instances of the GeneCoord class.
+        """
         with h5py.File(self.fname, 'r') as f:
             if self.dna_groupname not in f:
                 raise Exception
@@ -617,6 +765,14 @@ class DnaDataset:
         return annotation_dict
 
     def get_num_contacts(self) -> Dict[str, int]:
+        """
+        Get the number of contacts for each RNA molecule in the DNA group.
+
+        Returns
+        -------
+        Dict[str, int]
+            A dictionary where the keys are RNA molecule names and the values are the corresponding number of contacts.
+        """
         with h5py.File(self.fname, 'r') as f:
             if self.dna_groupname not in f:
                 raise Exception
@@ -625,6 +781,19 @@ class DnaDataset:
         return sizes
 
     def read_rna_attribute_batch(self, attrname: str) -> Dict[str, Any]:
+        """
+        Read the specified RNA attribute for all RNAs in the file.
+
+        Parameters
+        ----------
+        attrname : str
+            The name of the RNA attribute to read.
+
+        Returns
+        -------
+        Dict[str, Any]
+            A dictionary mapping RNA names to their corresponding attribute values.
+        """
         with h5py.File(self.fname, 'r') as f:
             if self.dna_groupname not in f:
                 raise Exception
@@ -633,6 +802,20 @@ class DnaDataset:
         return data
 
     def write_rna_attribute_batch(self, attrname: str, data: Dict[str, Any]) -> None:
+        """
+        Write the specified RNA attribute for all RNAs to the HDF5 file.
+
+        Parameters
+        ----------
+        attrname : str
+            The name of the attribute to be written.
+        data : Dict[str, Any]
+            A dictionary containing RNA names as keys and attribute values as values.
+
+        Returns
+        -------
+        None
+        """
         with h5py.File(self.fname, 'a') as f:
             if self.dna_groupname not in f:
                 raise Exception
