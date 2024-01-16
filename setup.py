@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 
 setup(name='bardic',
-      version='0.4.1',
+      version='0.5.0',
       description='A binomial RNA-DNA interaction caller.',
       url='http://github.com/dmitrymyl/BaRDIC',
       author='Dmitry Mylarshchikov',
