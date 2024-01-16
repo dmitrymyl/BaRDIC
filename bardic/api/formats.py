@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import bioframe as bf
 import h5py
@@ -20,12 +20,92 @@ from .schemas import GeneCoord, RnaAttrs, RnaPixelRecord, SplineResult
 
 
 class StatusProperty:
+    """
+    A descriptor class that represents a status property.
+
+    This class allows accessing and setting a boolean status property
+    stored in an HDF5 file. The property is lazily loaded from the file
+    when accessed for the first time.
+
+    Attributes
+    ----------
+    private_name : str
+        The name of the private attribute where the property value is stored.
+    public_name : str
+        The name of the public property.
+
+    Methods
+    -------
+    __set_name__(self, owner, name: str) -> None:
+        Sets the private and public names of the property.
+    __get__(self, obj, objtype=None) -> bool:
+        Retrieves the value of the property.
+    __set__(self, obj, value: bool) -> None:
+        Sets the value of the property.
+
+    Usage
+    -----
+    Define a class attribute using the `StatusProperty` descriptor
+    to represent a status property.
+
+    Example
+    -------
+    class MyClass:
+        status : StatusProperty
+            Represents the status of something.
+        is_active : StatusProperty
+            Represents the active status of something.
+    """
 
     def __set_name__(self, owner, name: str) -> None:
+        """
+        Set the name of the descriptor.
+
+        Parameters
+        ----------
+        owner : type
+            The class that owns the descriptor.
+        name : str
+            The name of the descriptor.
+
+        Returns
+        -------
+        None
+            This method does not return anything.
+        """
         self.private_name = '_' + name
         self.public_name = name
 
     def __get__(self, obj, objtype=None) -> bool:
+        """
+        Retrieve the value of the attribute from the object.
+
+        If the attribute value is `None`, it retrieves the value from the HDF5 file associated with the object.
+        The attribute value is expected to be a boolean, and if it is not, an exception is raised.
+
+        Parameters
+        ----------
+        obj : object
+            The object on which the attribute is accessed.
+        objtype : type, optional
+            The type of the object.
+
+        Returns
+        -------
+        value : bool
+            The value of the attribute.
+
+        Raises
+        ------
+        Exception
+            If the attribute value is not a boolean.
+
+        Examples
+        --------
+        >>> obj = MyClass()
+        >>> obj.my_attribute
+        True
+        """
         value = getattr(obj, self.private_name)
         if value is None:
             with h5py.File(obj.fname, 'r') as f:
@@ -37,6 +117,25 @@ class StatusProperty:
         return value
 
     def __set__(self, obj, value: bool) -> None:
+        """
+        Set the value of the attribute.
+
+        Parameters
+        ----------
+        obj : object
+            The object on which the attribute is being set.
+        value : bool
+            The value to be set.
+
+        Raises
+        ------
+        ValueError
+            If the value is not a boolean.
+
+        Returns
+        -------
+        None
+        """
         if value not in (True, False):
             raise ValueError
         with h5py.File(obj.fname, 'a') as f:
@@ -45,15 +144,88 @@ class StatusProperty:
 
 
 class VersionProperty:
+    """
+    A descriptor class that represents a version property.
 
-    def __init__(self, supported_versions: tuple) -> None:
+    This class allows accessing and setting a version property of an object.
+    The version property is stored in an HDF5 file and can only have values
+    from a predefined list of supported versions.
+
+    Parameters:
+    -----------
+    supported_versions : Tuple[str]
+        A tuple of strings representing the supported versions.
+
+    Attributes:
+    -----------
+    supported_versions : Tuple[str]
+        A tuple of strings representing the supported versions.
+
+    private_name : str
+        The private name of the version property.
+
+    public_name : str
+        The public name of the version property.
+    """
+
+    def __init__(self, supported_versions: Tuple[str]) -> None:
+        """
+        Initialize the Formats class.
+
+        Parameters
+        ----------
+        supported_versions : Tuple[str]
+            A tuple of supported versions.
+
+        Returns
+        -------
+        None
+        """
         self.supported_versions = supported_versions
 
     def __set_name__(self, owner, name: str) -> None:
+        """
+        Set the name of the version property.
+
+        This method is automatically called by the Python interpreter when
+        the descriptor is assigned to a class attribute.
+
+        Parameters:
+        -----------
+        owner : type
+            The owner class of the version property.
+
+        name : str
+            The name of the version property.
+        """
         self.private_name = '_' + name
         self.public_name = name
 
-    def __get__(self, obj, objtype=None) -> bool:
+    def __get__(self, obj, objtype=None) -> str:
+        """
+        Get the value of the version property.
+
+        This method is automatically called when the version property is accessed.
+
+        Parameters:
+        -----------
+        obj : object
+            The object instance that the version property belongs to.
+
+        objtype : type, optional
+            The type of the object instance.
+
+        Returns:
+        --------
+        value : str
+            The value of the version property.
+
+        Raises:
+        -------
+        Exception
+            If the version property is not found in the HDF5 file or if the value
+            is not in the list of supported versions.
+        """
         value = getattr(obj, self.private_name)
         if value is None:
             with h5py.File(obj.fname, 'r') as f:
@@ -61,12 +233,30 @@ class VersionProperty:
                 if value in self.supported_versions:
                     setattr(obj, self.private_name, value)
                 else:
-                    raise Exception
+                    raise Exception("Unsupported version")
         return value
 
-    def __set__(self, obj, value: bool) -> None:
+    def __set__(self, obj, value: str) -> None:
+        """
+        Set the value of the version property.
+
+        This method is automatically called when the version property is set.
+
+        Parameters:
+        -----------
+        obj : object
+            The object instance that the version property belongs to.
+
+        value : str
+            The value to set for the version property.
+
+        Raises:
+        -------
+        ValueError
+            If the value is not in the list of supported versions.
+        """
         if value not in self.supported_versions:
-            raise ValueError
+            raise ValueError("Unsupported version")
         with h5py.File(obj.fname, 'a') as f:
             f.attrs[self.public_name] = value
         setattr(obj, self.private_name, value)
