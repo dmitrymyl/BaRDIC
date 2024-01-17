@@ -856,18 +856,6 @@ class Rdc:
                                       'pvalue': 'float',
                                       'qvalue_global': 'float',
                                       'qvalue_rna': 'float'}}
-    # pixels_cols = {'start': 'int64',
-    #                'end': 'int64',
-    #                'signal_count': 'int64',
-    #                'signal_prob': 'float',
-    #                'impute': 'bool',
-    #                'bg_count': 'float',
-    #                'bg_prob': 'float',
-    #                'raw_bg_prob': 'float',
-    #                'scaling_factor': 'float',
-    #                'fc': 'float',
-    #                'pvalue': 'float',
-    #                'qvalue': 'float'}
 
     chrom_groupname: str = "chrom_sizes"
     bg_groupname: str = "background"

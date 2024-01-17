@@ -334,7 +334,8 @@ run_input_group.add_argument('bgdata',
                              help='A file with data on background. If --bgtype="rnas", '
                                   'this is a file with a list of RNAs with one RNA name per line. '
                                   'If --bgtype="custom", this is a bedGraph file with '
-                                  'background signal in equally-sized bins.')
+                                  'background signal in equally-sized bins. '
+                                  'If --bgtype="uniform", this is not used, write any string here.')
 
 run_output_group = run_pipeline_parser.add_argument_group('Output')
 run_output_group.add_argument('outdir',
@@ -420,10 +421,11 @@ run_background_group.add_argument('-bt', '--bgtype',
                                   nargs='?',
                                   dest='bg_type',
                                   default='rnas',
-                                  choices=('rnas', 'custom'),
+                                  choices=('rnas', 'custom', 'uniform'),
                                   help='Type of backround. If "rnas", then will calculate background '
-                                       'from trans-contacts of RNAs supplied as "bgdata". If "custom", '
-                                       'will use bedgraph track provided as "bgdata".')
+                                       'from trans-contacts of RNAs supplied as "bgdata". '
+                                       'If "custom", will use bedgraph track provided as "bgdata". '
+                                       'If "uniform", will use uniform background with coverage 1.')
 
 run_makerdc_group = run_pipeline_parser.add_argument_group('RDC creation parameters')
 run_makerdc_group.add_argument('-i', '--ifactor',

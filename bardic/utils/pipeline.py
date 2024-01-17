@@ -28,7 +28,8 @@ def run_pipeline(dna_parts_fname: str,
                  rdc_params: Dict = {},
                  scaling_params: Dict = {},
                  peaks_format_params: Dict = {},
-                 makebg: bool = True,
+                 make_bg: bool = True,
+                 uniform_bg: bool = False,
                  n_cores: int = 1):
     chromdict = chromsizes
     annotation_dict = annotation_to_dict(annotation)
@@ -38,8 +39,8 @@ def run_pipeline(dna_parts_fname: str,
     selection_df = optimize_bin_sizes(dna_dataset, n_cores=n_cores, **binsize_params)
     selection_df.to_csv(selection_results_fname, sep='\t', header=True, index=False)
 
-    if makebg:
-        bg_track = make_background_track(dna_dataset, rna_list, bg_binsize)
+    if make_bg:
+        bg_track = make_background_track(dna_dataset, rna_list, bg_binsize, uniform_bg)
         bg_track.to_csv(bg_fname, header=False, index=False, sep='\t')
     else:
         bg_track = read_bedgraph(bg_fname)

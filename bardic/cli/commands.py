@@ -145,11 +145,18 @@ def run_pipeline_cli(dnaparts: str,
         bg_fname = os.path.join(outdir, 'background.bedGraph')
         with open(bgdata, 'r') as infile:
             rna_list = [line.strip() for line in infile]
-        makebg = True
+        make_bg = True
+        uniform_bg = False
     elif bg_type == "custom":
         bg_fname = bgdata
         rna_list = None
-        makebg = False
+        make_bg = False
+        uniform_bg = True
+    elif bg_type == "uniform":
+        bg_fname = os.path.join(outdir, 'background.bedGraph')
+        rna_list = None
+        make_bg = True
+        uniform_bg = True
     else:
         raise ValueError
 
@@ -188,4 +195,5 @@ def run_pipeline_cli(dnaparts: str,
                  peaks_format_params=dict(format=format, score=score),
                  peaks_output=peaks_output,
                  n_cores=n_cores,
-                 makebg=makebg)
+                 make_bg=make_bg,
+                 uniform_bg=uniform_bg)
