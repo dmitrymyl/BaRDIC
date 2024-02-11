@@ -47,9 +47,10 @@ The command `bardic run` will run the whole pipeline, while other commands launc
 usage: bardic run [-h] [-f [{narrowPeak,bed}]] [-s [score_field]] [-mcon [int]]
                   [-tmin [int]] [-tmax [int]] [-tstep [int]] [-cmin [float]]
                   [-cmax [float]] [-cstep [float]] [-cstart [int]]
-                  [-tol [float]] [-w [float]] [-bs [int]] [-bt [{rnas,custom}]]
-                  [-i [float]] [-d [int]] [-mt [float]] [-ns] [-nr]
-                  [-fv [numeric]] [-q [float]] [-qt [{global,rna}]] [-c [int]]
+                  [-tol [float]] [-w [float]] [-bs [int]]
+                  [-bt [{rnas,custom,uniform}]] [-i [float]] [-d [int]]
+                  [-mt [float]] [-ns] [-nr] [-fv [numeric]] [-q [float]]
+                  [-qt [{global,rna}]] [-c [int]]
                   dnaparts annotation chromsizes bgdata outdir
 
 Run pipeline with a single command.
@@ -67,7 +68,9 @@ Input:
   bgdata                A file with data on background. If --bgtype="rnas", this
                         is a file with a list of RNAs with one RNA name per
                         line. If --bgtype="custom", this is a bedGraph file with
-                        background signal in equally-sized bins.
+                        background signal in equally-sized bins. If
+                        --bgtype="uniform", this is not used, write any string
+                        here.
 
 Output:
   outdir                Output directory name.
@@ -111,11 +114,12 @@ Binsize selection parameters:
 Background parameters:
   -bs [int], --binsize [int]
                         Bin size of the background track. (default: 1000)
-  -bt [{rnas,custom}], --bgtype [{rnas,custom}]
+  -bt [{rnas,custom,uniform}], --bgtype [{rnas,custom,uniform}]
                         Type of backround. If "rnas", then will calculate
                         background from trans-contacts of RNAs supplied as
                         "bgdata". If "custom", will use bedgraph track provided
-                        as "bgdata". (default: rnas)
+                        as "bgdata". If "uniform", will use uniform background
+                        with coverage 1. (default: rnas)
 
 RDC creation parameters:
   -i [float], --ifactor [float]

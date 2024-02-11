@@ -97,7 +97,7 @@ class StatusProperty:
 
         Raises
         ------
-        Exception
+        ValueError
             If the attribute value is not a boolean.
 
         Examples
@@ -113,7 +113,7 @@ class StatusProperty:
                 if value in (True, False):
                     setattr(obj, self.private_name, value)
                 else:
-                    raise Exception
+                    raise ValueError("Invalid value. The value must be a boolean.")
         return value
 
     def __set__(self, obj, value: bool) -> None:
@@ -137,7 +137,7 @@ class StatusProperty:
         None
         """
         if value not in (True, False):
-            raise ValueError
+            raise ValueError("Invalid value. The value must be a boolean.")
         with h5py.File(obj.fname, 'a') as f:
             f.attrs[self.public_name] = value
         setattr(obj, self.private_name, value)
@@ -222,7 +222,7 @@ class VersionProperty:
 
         Raises:
         -------
-        Exception
+        ValueError
             If the version property is not found in the HDF5 file or if the value
             is not in the list of supported versions.
         """
@@ -233,7 +233,7 @@ class VersionProperty:
                 if value in self.supported_versions:
                     setattr(obj, self.private_name, value)
                 else:
-                    raise Exception("Unsupported version")
+                    raise ValueError(f"Unsupported version: {value}. Supported versions are {', '.join(self.supported_versions)}")
         return value
 
     def __set__(self, obj, value: str) -> None:
@@ -256,7 +256,7 @@ class VersionProperty:
             If the value is not in the list of supported versions.
         """
         if value not in self.supported_versions:
-            raise ValueError("Unsupported version")
+            raise ValueError(f"Unsupported version: {value}. Supported versions are {', '.join(self.supported_versions)}")
         with h5py.File(obj.fname, 'a') as f:
             f.attrs[self.public_name] = value
         setattr(obj, self.private_name, value)
@@ -337,8 +337,8 @@ class DnaDataset:
 
         self._are_binsizes_selected: Optional[bool] = None
         self._version: Optional[str] = None
-        if self.version != "1":
-            raise ValueError
+        if self.version not in self.supported_versions:
+            raise ValueError(f"Unsupported version: {self.version}. Supported versions are {', '.join(self.supported_versions)}")
 
         self._chromsizes: Optional[Dict[str, int]] = chromsizes
         if chromsizes is not None:
@@ -367,8 +367,10 @@ class DnaDataset:
         if self._chromsizes is None:
             try:
                 self._chromsizes = self._read_chromsizes()
-            except Exception:
-                raise Exception
+            except FileNotFoundError:
+                raise Exception("Failed to read chromosome sizes from the .dnah5 file: File not found.")
+            except Exception as e:
+                raise Exception("Failed to read chromosome sizes from the .dnah5 file: " + str(e))
         return self._chromsizes
 
     @chromsizes.setter
@@ -407,7 +409,7 @@ class DnaDataset:
             try:
                 self._annotation = self._get_annotation()
             except Exception:
-                raise Exception
+                raise Exception("Failed to get gene annotation.")
         return self._annotation
 
     @annotation.setter
@@ -827,7 +829,42 @@ class DnaDataset:
 
 class Rdc:
     """
-    # add docstring in numpydoc style
+    Represents an RDC (RNA-DNA contacts) file.
+
+    The Rdc class provides methods to read and write data from/to an RDC file.
+    It supports different versions of the RDC file format and provides convenient
+    access to the data stored in the file.
+
+    Parameters
+    ----------
+    fname : str
+        The path to the RDC file.
+    chromsizes : Optional[Dict[str, int]], optional
+        A dictionary mapping chromosome names to their sizes. Defaults to None.
+
+    Attributes
+    ----------
+    supported_versions : tuple
+        A tuple of supported RDC file versions.
+    pixels_cols_by_version : dict
+        A dictionary mapping RDC file versions to the columns present in the pixels dataset.
+    chrom_groupname : str
+        The name of the group that stores chromosome sizes.
+    bg_groupname : str
+        The name of the group that stores background track data.
+    pixels_groupname : str
+        The name of the group that stores pixel data.
+    is_scaling_fitted : StatusProperty
+        A property indicating whether scaling has been fitted for the RDC file.
+    are_peaks_estimated : StatusProperty
+        A property indicating whether peaks have been estimated for the RDC file.
+    version : VersionProperty
+        The version of the RDC file.
+
+    Raises
+    ------
+    Exception
+        If the RDC file version is not supported.
     """
     supported_versions = ("1", "1.1")  # version 1 is deprecated and will be removed in the future.
 
