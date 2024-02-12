@@ -31,13 +31,16 @@ Subcommands:
     binsizes  Select bin size for each RNA and save it into dnah5 file
     background
               Create a bedGraph background track from DNA parts of selected RNAs
-    makerdc   Create RDC file from dnah5 DNA parts and bedGraph background track.
-    scaling   Estimate scaling by fitting splines and adjust background probabilities in RDC file.
+    makerdc   Create RDC file from dnah5 DNA parts and bedGraph background
+              track.
+    scaling   Estimate scaling by fitting splines and adjust background
+              probabilities in RDC file.
     peaks     Estimate significance and fetch peaks at specified FDR level.
     run       Run pipeline with a single command.
+    simulate  Simulate RNA-DNA data for a single RNA from first principles.
 ```
 
-The command `bardic run` will run the whole pipeline, while other commands launch single steps of the pipeline. 
+The command `bardic run` will run the whole pipeline, while other commands launch single steps of the pipeline. The command `bardic simulate` will simulate RNA-DNA contact data.
 
 ### `bardic run` &mdash; run pipeline with single command
 
