@@ -2,7 +2,7 @@ import argparse
 from typing import Union
 
 from .commands import (background_cli, bed2h5_cli, binsizes_cli, makerdc_cli,
-                       peaks_cli, scaling_cli, run_pipeline_cli)
+                       peaks_cli, scaling_cli, run_pipeline_cli, simulate_cli)
 
 
 class CustomFormatter(argparse.ArgumentDefaultsHelpFormatter, argparse.MetavarTypeHelpFormatter):
@@ -479,3 +479,110 @@ run_processing_group.add_argument('-c', '--cores',
                                   default=1,
                                   dest='n_cores',
                                   help='Maximal number of cores to use.')
+
+
+simulate_parser = bardic_subparsers.add_parser('simulate',
+                                               help='Simulate RNA-DNA data for a single RNA from first principles.',
+                                               description='Simulate RNA-DNA data for a single RNA from first principles.',
+                                               formatter_class=CustomFormatter)
+simulate_parser.set_defaults(func=simulate_cli)
+
+output_group = simulate_parser.add_argument_group('Output',
+                                                  description='Output directory and RNA name')
+output_group.add_argument('outdir',
+                          type=str,
+                          help='Output directory')
+output_group.add_argument('--rna_name',
+                          type=str,
+                          default='simulRNA',
+                          help='Name of the simualted RNA')
+
+genome_group = simulate_parser.add_argument_group('Genome',
+                                                  description='Parameters for the genome')
+genome_group.add_argument('--L_cis',
+                          type=int,
+                          default=100_000_000,
+                          help='Length of the cis chromosome')
+genome_group.add_argument('--L_genome',
+                          type=int,
+                          default=2_000_000_000,
+                          help='Length of the genome')
+
+background_group = simulate_parser.add_argument_group('Background',
+                                                      description='Parameters for the background simulation')
+background_group.add_argument('--bin_size',
+                              type=int,
+                              default=1_000,
+                              help='Size of bins for the background simulation')
+background_group.add_argument('--bg_exp',
+                              type=float,
+                              default=8,
+                              help='Expected number of counts in a bin for the background simulation (Poisson lambda)')
+background_group.add_argument('--imputation_factor',
+                              type=float,
+                              default=0.01,
+                              help='Factor times Poisson lambda to impute zero counts for simulation of contacts')
+
+scaling_group = simulate_parser.add_argument_group('Scaling',
+                                                   description='Parameters for the scaling sigmoid')
+scaling_group.add_argument('--A',
+                           type=int,
+                           default=3,
+                           help='Parameter A for the scaling sigmoid (max log fold-change at the gene point)')
+scaling_group.add_argument('--D_high',
+                           type=float,
+                           default=3,
+                           help='D_high to fit the scaling sigmoid (lg distance of F_high times A)')
+scaling_group.add_argument('--D_low',
+                           type=float,
+                           default=7,
+                           help='D_low to fit the scaling sigmoid (lg distance of F_low times A)')
+scaling_group.add_argument('--F_high',
+                           type=float,
+                           default=0.9,
+                           help='F_high to fit the scaling sigmoid')
+scaling_group.add_argument('--F_low',
+                           type=float,
+                           default=0.1,
+                           help='F_low to fit the scaling sigmoid')
+
+gene_group = simulate_parser.add_argument_group('Gene',
+                                                description='Parameters for the gene point sampling')
+gene_group.add_argument('--B_left',
+                        type=float,
+                        default=0.05,
+                        help='Start of the region on the cis chromosome to sample the gene point from (as a fraction of the chromosome length)')
+gene_group.add_argument('--B_right',
+                        type=float,
+                        default=0.95,
+                        help='End of the region on the cis chromosome to sample the gene point from (as a fraction of the chromosome length)')
+
+contacts_group = simulate_parser.add_argument_group('Contacts',
+                                                    description='Parameters for the simulation of non-specific contacts')
+contacts_group.add_argument('--N_total',
+                            type=int,
+                            default=20_000,
+                            help='Total number of simulated non-specific contacts')
+contacts_group.add_argument('--frac_cis',
+                            type=float,
+                            default=0.75,
+                            help='Fraction of simulated non-specific contacts in cis')
+
+peaks_group = simulate_parser.add_argument_group('Peaks',
+                                                 description='Parameters for the peaks simulation')
+peaks_group.add_argument('--N_peaks',
+                         type=int,
+                         default=5,
+                         help='Number of simulated peaks')
+peaks_group.add_argument('--frac_cis_peaks',
+                         type=float,
+                         default=0.2,
+                         help='Fraction of peaks in cis')
+peaks_group.add_argument('--peak_exp',
+                         type=int,
+                         default=100,
+                         help='Expected number of contacts per peak (Poisson lambda)')
+peaks_group.add_argument('--sd',
+                         type=int,
+                         default=5_000,
+                         help='Standard deviation of the peak contacts positions (Normal sigma)')

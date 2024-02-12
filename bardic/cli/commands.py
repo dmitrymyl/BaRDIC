@@ -6,7 +6,7 @@ from ..api.formats import DnaDataset, Rdc
 from ..api.io import get_chromsizes, read_annotation, read_bedgraph
 from ..utils import (bed2h5, optimize_bin_sizes, calculate_scaling_splines,
                      dnadataset_to_rdc, estimate_significance, fetch_peaks,
-                     format_peaks, make_background_track, run_pipeline)
+                     format_peaks, make_background_track, run_pipeline, simulate)
 
 
 def bed2h5_cli(annotation: str, chromsizes: str, dnaparts: str, output: str):
@@ -197,3 +197,51 @@ def run_pipeline_cli(dnaparts: str,
                  n_cores=n_cores,
                  make_bg=make_bg,
                  uniform_bg=uniform_bg)
+
+
+Numeric = Union[int, float]
+
+
+def simulate_cli(outdir: str,
+                 rna_name: str = 'simulRNA',
+                 L_cis: int = 100_000_000,
+                 L_genome: int = 2_000_000_000,
+                 bin_size: int = 1_000,
+                 bg_exp: Numeric = 8,
+                 imputation_factor: float = 0.01,
+                 A: Numeric = 3,
+                 D_high: Numeric = 3,
+                 D_low: Numeric = 7,
+                 F_high: float = 0.9,
+                 F_low: float = 0.1,
+                 B_left: float = 0.05,
+                 B_right: float = 0.95,
+                 N_total: int = 20_000,
+                 frac_cis: float = 0.75,
+                 N_peaks: int = 5,
+                 frac_cis_peaks: float = 0.2,
+                 peak_exp: int = 100,
+                 sd: int = 5_000,
+                 ):
+
+    simulate(outdir=outdir,
+             rna_name=rna_name,
+             L_cis=L_cis,
+             L_genome=L_genome,
+             bin_size=bin_size,
+             bg_exp=bg_exp,
+             imputation_factor=imputation_factor,
+             A=A,
+             D_high=D_high,
+             D_low=D_low,
+             F_high=F_high,
+             F_low=F_low,
+             B_left=B_left,
+             B_right=B_right,
+             N_total=N_total,
+             frac_cis=frac_cis,
+             N_peaks=N_peaks,
+             frac_cis_peaks=frac_cis_peaks,
+             peak_exp=peak_exp,
+             sd=sd,
+             )
